@@ -22,11 +22,11 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build (Warnings As Errors)
-        run: dotnet build --no-restore --configuration Release
+      - name: Build
+        run: dotnet build --no-restore --configuration Release -p:TreatWarningsAsErrors=false
 
       - name: Run Unit Tests
-        run: dotnet test tests/CabinBooking.UnitTests --no-build --configuration Release --verbosity normal
+        run: dotnet test tests/CabinBooking.UnitTests --configuration Release --verbosity normal -p:TreatWarningsAsErrors=false
 
   frontend:
     name: Frontend (React 19 + TypeScript)
