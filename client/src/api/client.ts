@@ -9,6 +9,8 @@ import type {
   User,
   UserRole,
   UtilizationReport,
+  AuditEntry,
+  UpdateSettingsRequest,
 } from "./types";
 
 const TOKEN_KEY = "cabin-booking.token";
@@ -179,4 +181,14 @@ export const api = {
     request<User>("PUT", `/api/users/${id}`, { role, isActive }),
   utilization: (from: string, to: string) =>
     request<UtilizationReport>("GET", `/api/reports/utilization?${qs({ from, to })}`),
+  updateRules: (rules: UpdateSettingsRequest) =>
+    request<BookingRules>("PUT", "/api/config/rules", rules),
+  auditLog: (take = 50, skip = 0) =>
+    request<AuditEntry[]>("GET", `/api/audit?${qs({ take, skip })}`),
+
+  // downloads
+  downloadBookingsCsv: (from?: string, to?: string, cabinId?: number) =>
+    `/api/bookings/export/csv?${qs({ from, to, cabinId })}`,
+  downloadUtilizationCsv: (from: string, to: string) =>
+    `/api/reports/utilization/csv?${qs({ from, to })}`,
 };

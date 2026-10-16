@@ -116,3 +116,28 @@ export interface UtilizationReport {
     bookedHours: number;
   }[];
 }
+
+export interface AuditEntry {
+  id: string;
+  userId: string | null;
+  userName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details: string;
+  timestamp: string;
+}
+
+export interface UpdateSettingsRequest {
+  officeStart: string;
+  officeEnd: string;
+  workingDays: string[];
+  slotMinutes: number;
+  minDurationMinutes: number;
+  maxDurationMinutes: number;
+  maxDaysAhead: number;
+  checkInOpensMinutesBefore: number;
+  autoReleaseEnabled: boolean;
+  checkInGraceMinutes: number;
+  projects: string[];
+}

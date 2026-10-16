@@ -30,6 +30,16 @@ public sealed class RecordingNotifier : IBookingNotifier
     public Task CabinsChangedAsync() { Events.Add("cabins"); return Task.CompletedTask; }
 }
 
+public class NoOpAuditLogger : IAuditLogger
+{
+    public Task LogAsync(string action, string entityType, string entityId, string details, CancellationToken cancellationToken = default) => Task.CompletedTask;
+}
+
+public class NoOpEmailOutbox : IEmailOutbox
+{
+    public ValueTask QueueEmailAsync(EmailNotification notification) => ValueTask.CompletedTask;
+}
+
 /// <summary>Wires a BookingService against an in-memory database. Office: Asia/Kolkata (UTC+05:30), 09:00–20:00.</summary>
 public sealed class BookingFixture
 {
@@ -64,7 +74,7 @@ public sealed class BookingFixture
 
         CurrentUser.UserId = Alice.Id;
         Rules = new BookingRuleValidator(Microsoft.Extensions.Options.Options.Create(options ?? new BookingRulesOptions()), Clock);
-        Service = new BookingService(Db, new SqlServerCabinLock(Db), CurrentUser, Notifier, Rules, NullLogger<BookingService>.Instance);
+        Service = new BookingService(Db, new SqlServerCabinLock(Db), CurrentUser, Notifier, Rules, new NoOpAuditLogger(), new NoOpEmailOutbox(), NullLogger<BookingService>.Instance);
     }
 
     public void ActAs(User user, bool admin = false)

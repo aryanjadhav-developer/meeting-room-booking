@@ -13,6 +13,8 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import DownloadIcon from "@mui/icons-material/Download";
+import { api } from "../api/client";
 import type { Booking } from "../api/types";
 import { BookingDetailsDialog } from "../components/BookingDetailsDialog";
 import { BookingDialog, type BookingDraft } from "../components/BookingDialog";
@@ -52,6 +54,14 @@ export function MyBookingsPage() {
             }
             label="Show history"
           />
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            href={api.downloadBookingsCsv()}
+            download="bookings.csv"
+          >
+            Export CSV
+          </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDraft({})}>
             New booking
           </Button>

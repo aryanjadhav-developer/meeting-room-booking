@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CabinBooking.Application.Services;
 
-public class CabinService(IAppDbContext db, IBookingNotifier notifier, BookingRuleValidator rules)
+public class CabinService(IAppDbContext db, IBookingNotifier notifier, BookingRuleValidator rules, IAuditLogger audit)
 {
     public async Task<IReadOnlyList<CabinDto>> GetAllAsync(bool includeInactive, CancellationToken ct)
     {
@@ -53,6 +53,7 @@ public class CabinService(IAppDbContext db, IBookingNotifier notifier, BookingRu
         db.Cabins.Add(cabin);
         await db.SaveChangesAsync(ct);
         await notifier.CabinsChangedAsync();
+        await audit.LogAsync("CabinCreated", "Cabin", cabin.Id.ToString(), $"Created room '{cabin.Name}' (Capacity: {cabin.Capacity})", ct);
         return cabin.ToDto();
     }
 
@@ -66,6 +67,7 @@ public class CabinService(IAppDbContext db, IBookingNotifier notifier, BookingRu
         Apply(cabin, request);
         await db.SaveChangesAsync(ct);
         await notifier.CabinsChangedAsync();
+        await audit.LogAsync("CabinUpdated", "Cabin", cabin.Id.ToString(), $"Updated room '{cabin.Name}' (Active: {cabin.IsActive})", ct);
         return cabin.ToDto();
     }
 

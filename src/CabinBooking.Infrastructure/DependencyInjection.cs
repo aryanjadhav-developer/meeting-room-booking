@@ -43,10 +43,13 @@ public static class DependencyInjection
         }
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        services.AddScoped<IAuditLogger, Audit.AuditLogger>();
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<Email.EmailSender>();
         services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<Email.EmailSender>());
         services.AddSingleton<Email.IPreviewEmailStore>(sp => sp.GetRequiredService<Email.EmailSender>());
+        services.AddSingleton<Email.EmailOutbox>();
+        services.AddSingleton<IEmailOutbox>(sp => sp.GetRequiredService<Email.EmailOutbox>());
         return services;
     }
 }

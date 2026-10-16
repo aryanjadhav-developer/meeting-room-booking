@@ -9,6 +9,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<Cabin> Cabins => Set<Cabin>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<SystemSetting> Settings => Set<SystemSetting>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -38,6 +40,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.RefreshToken).HasMaxLength(200);
             e.Property(x => x.PasswordResetToken).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<AuditEntry>(e =>
+        {
+            e.ToTable("AuditEntries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Action).HasMaxLength(100).IsRequired();
+            e.Property(x => x.EntityType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.EntityId).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Details).HasMaxLength(2000);
+            e.HasIndex(x => x.Timestamp);
+        });
+
+        modelBuilder.Entity<SystemSetting>(e =>
+        {
+            e.ToTable("Settings");
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasMaxLength(100);
+            e.Property(x => x.Value).IsRequired();
         });
 
         modelBuilder.Entity<Cabin>(e =>

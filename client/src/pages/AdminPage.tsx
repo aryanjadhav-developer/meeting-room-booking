@@ -30,8 +30,10 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import DownloadIcon from "@mui/icons-material/Download";
+import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../api/client";
-import type { Cabin, UpsertCabin, UserRole } from "../api/types";
+import type { Cabin, UpsertCabin, UserRole, UpdateSettingsRequest } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useNotify } from "../components/Notifier";
 import { useCabins } from "../hooks/queries";
@@ -39,7 +41,7 @@ import { capacityText } from "../utils/format";
 import { office } from "../utils/time";
 
 export function AdminPage() {
-  const [tab, setTab] = useState<"reports" | "cabins" | "users">("reports");
+  const [tab, setTab] = useState<"reports" | "cabins" | "users" | "audit" | "settings">("reports");
   return (
     <Stack spacing={2}>
       <Typography variant="h5">Admin</Typography>
@@ -47,10 +49,14 @@ export function AdminPage() {
         <Tab value="reports" label="Utilisation" />
         <Tab value="cabins" label="Cabins" />
         <Tab value="users" label="Users" />
+        <Tab value="audit" label="Audit Log" />
+        <Tab value="settings" label="Settings" />
       </Tabs>
       {tab === "reports" && <ReportsTab />}
       {tab === "cabins" && <CabinsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "audit" && <AuditTab />}
+      {tab === "settings" && <SettingsTab />}
     </Stack>
   );
 }
@@ -68,7 +74,7 @@ function ReportsTab() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: "wrap" }}>
+      <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
         <TextField
           type="date"
           size="small"
@@ -85,6 +91,14 @@ function ReportsTab() {
           onChange={(e) => setTo(e.target.value)}
           slotProps={{ inputLabel: { shrink: true } }}
         />
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          href={api.downloadUtilizationCsv(from, to)}
+          download={`utilization_${from}_${to}.csv`}
+        >
+          Export CSV
+        </Button>
       </Stack>
       {error && <Alert severity="error">{(error as Error).message}</Alert>}
       {isLoading && <LinearProgress />}
@@ -454,5 +468,216 @@ function UsersTab() {
         </TableBody>
       </Table>
     </TableContainer>
+  );
+}
+
+// ------------------------------------------------------------------ audit
+
+function AuditTab() {
+  const { data: entries, error, isLoading } = useQuery({
+    queryKey: ["auditLog"],
+    queryFn: () => api.auditLog(100),
+  });
+
+  return (
+    <Stack spacing={2}>
+      {error && <Alert severity="error">{(error as Error).message}</Alert>}
+      {isLoading && <LinearProgress />}
+      <TableContainer component={Paper}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Time</TableCell>
+              <TableCell>User</TableCell>
+              <TableCell>Action</TableCell>
+              <TableCell>Entity</TableCell>
+              <TableCell>Details</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {entries?.map((e) => (
+              <TableRow key={e.id}>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                  {new Date(e.timestamp).toLocaleString()}
+                </TableCell>
+                <TableCell>{e.userName}</TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={e.action}
+                    color={
+                      e.action.includes("Cancel")
+                        ? "error"
+                        : e.action.includes("Create")
+                        ? "success"
+                        : "primary"
+                    }
+                  />
+                </TableCell>
+                <TableCell>{e.entityType}</TableCell>
+                <TableCell>{e.details}</TableCell>
+              </TableRow>
+            ))}
+            {entries?.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                  No audit entries recorded yet.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Stack>
+  );
+}
+
+// ------------------------------------------------------------------ settings
+
+function SettingsTab() {
+  const qc = useQueryClient();
+  const notify = useNotify();
+  const { data: rules, isLoading } = useQuery({
+    queryKey: ["rules"],
+    queryFn: api.rules,
+  });
+
+  const [officeStart, setOfficeStart] = useState("");
+  const [officeEnd, setOfficeEnd] = useState("");
+  const [slotMinutes, setSlotMinutes] = useState(15);
+  const [minDuration, setMinDuration] = useState(15);
+  const [maxDuration, setMaxDuration] = useState(240);
+  const [maxDaysAhead, setMaxDaysAhead] = useState(30);
+  const [checkInGrace, setCheckInGrace] = useState(15);
+  const [projectsStr, setProjectsStr] = useState("");
+
+  useEffect(() => {
+    if (rules) {
+      setOfficeStart(rules.officeStart.substring(0, 5));
+      setOfficeEnd(rules.officeEnd.substring(0, 5));
+      setSlotMinutes(rules.slotMinutes);
+      setMinDuration(rules.minDurationMinutes);
+      setMaxDuration(rules.maxDurationMinutes);
+      setMaxDaysAhead(rules.maxDaysAhead);
+      setCheckInGrace(rules.checkInGraceMinutes);
+      setProjectsStr(rules.projects.join(", "));
+    }
+  }, [rules]);
+
+  const update = useMutation({
+    mutationFn: (req: UpdateSettingsRequest) => api.updateRules(req),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rules"] });
+      notify("Settings updated successfully.", "success");
+    },
+    onError: (err) => notify((err as Error).message, "error"),
+  });
+
+  const handleSave = () => {
+    if (!rules) return;
+    const req: UpdateSettingsRequest = {
+      officeStart: `${officeStart}:00`,
+      officeEnd: `${officeEnd}:00`,
+      workingDays: rules.workingDays,
+      slotMinutes: Number(slotMinutes),
+      minDurationMinutes: Number(minDuration),
+      maxDurationMinutes: Number(maxDuration),
+      maxDaysAhead: Number(maxDaysAhead),
+      checkInOpensMinutesBefore: rules.checkInOpensMinutesBefore,
+      autoReleaseEnabled: rules.autoReleaseEnabled,
+      checkInGraceMinutes: Number(checkInGrace),
+      projects: projectsStr
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean),
+    };
+    update.mutate(req);
+  };
+
+  if (isLoading) return <LinearProgress />;
+
+  return (
+    <Card sx={{ maxWidth: 650 }}>
+      <CardContent>
+        <Stack spacing={3}>
+          <Typography variant="h6">Booking & Office Rules</Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              label="Office Start Time"
+              type="time"
+              value={officeStart}
+              onChange={(e) => setOfficeStart(e.target.value)}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Office End Time"
+              type="time"
+              value={officeEnd}
+              onChange={(e) => setOfficeEnd(e.target.value)}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              label="Slot Duration (mins)"
+              type="number"
+              value={slotMinutes}
+              onChange={(e) => setSlotMinutes(Number(e.target.value))}
+              fullWidth
+            />
+            <TextField
+              label="Min Duration (mins)"
+              type="number"
+              value={minDuration}
+              onChange={(e) => setMinDuration(Number(e.target.value))}
+              fullWidth
+            />
+            <TextField
+              label="Max Duration (mins)"
+              type="number"
+              value={maxDuration}
+              onChange={(e) => setMaxDuration(Number(e.target.value))}
+              fullWidth
+            />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              label="Max Days Ahead to Book"
+              type="number"
+              value={maxDaysAhead}
+              onChange={(e) => setMaxDaysAhead(Number(e.target.value))}
+              fullWidth
+            />
+            <TextField
+              label="Check-in Grace Period (mins)"
+              type="number"
+              value={checkInGrace}
+              onChange={(e) => setCheckInGrace(Number(e.target.value))}
+              fullWidth
+            />
+          </Stack>
+          <TextField
+            label="Allowed Projects (comma-separated)"
+            multiline
+            rows={2}
+            value={projectsStr}
+            onChange={(e) => setProjectsStr(e.target.value)}
+            helperText="Users select from these projects when scheduling a meeting."
+          />
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSave}
+              disabled={update.isPending}
+            >
+              {update.isPending ? "Saving…" : "Save Settings"}
+            </Button>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }

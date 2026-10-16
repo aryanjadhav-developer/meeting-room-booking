@@ -9,6 +9,8 @@ public interface IAppDbContext
     DbSet<User> Users { get; }
     DbSet<Cabin> Cabins { get; }
     DbSet<Booking> Bookings { get; }
+    DbSet<AuditEntry> AuditEntries { get; }
+    DbSet<SystemSetting> Settings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
@@ -51,4 +53,17 @@ public interface ITokenService
 public interface IEmailSender
 {
     Task SendEmailAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default);
+    Task SendEmailWithAttachmentAsync(string toEmail, string subject, string body, string attachmentContent, string attachmentFileName, string contentType, CancellationToken cancellationToken = default);
+}
+
+public interface IAuditLogger
+{
+    Task LogAsync(string action, string entityType, string entityId, string details, CancellationToken cancellationToken = default);
+}
+
+public record EmailNotification(string ToEmail, string Subject, string Body, string? IcsAttachmentContent = null, string? IcsAttachmentFileName = null);
+
+public interface IEmailOutbox
+{
+    ValueTask QueueEmailAsync(EmailNotification notification);
 }

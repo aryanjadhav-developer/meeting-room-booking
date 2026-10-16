@@ -14,6 +14,8 @@ public class BookingService(
     ICurrentUser currentUser,
     IBookingNotifier notifier,
     BookingRuleValidator rules,
+    IAuditLogger audit,
+    IEmailOutbox emailOutbox,
     ILogger<BookingService> logger)
 {
     private const int MaxTitleLength = 120;
@@ -125,6 +127,9 @@ public class BookingService(
 
         var dto = await GetAsync(id, ct);
         await notifier.BookingUpdatedAsync(dto);
+        await audit.LogAsync("BookingUpdated", "Booking", id.ToString(), $"Updated booking '{dto.Title}' in {dto.CabinName}", ct);
+        var ics = IcsCalendarBuilder.BuildIcs(dto.Id, dto.Title, dto.CabinName, "noreply@meetingrooms.local", dto.BookedByEmail, dto.StartTime, dto.EndTime, dto.Notes, "REQUEST");
+        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Updated: {dto.Title} ({dto.CabinName})", $"<p>Your booking for <strong>{dto.Title}</strong> in {dto.CabinName} was updated. New time: {rules.Format(dto.StartTime)} to {rules.Format(dto.EndTime)}.</p>", ics, $"meeting_{dto.Id:N}.ics"));
         return dto;
     }
 
@@ -154,6 +159,7 @@ public class BookingService(
 
         var dto = await GetAsync(id, ct);
         await notifier.BookingUpdatedAsync(dto);
+        await audit.LogAsync("BookingExtended", "Booking", id.ToString(), $"Extended booking '{dto.Title}' by {minutes} mins", ct);
         return dto;
     }
 
@@ -177,6 +183,7 @@ public class BookingService(
 
         var dto = await GetAsync(id, ct);
         await notifier.BookingUpdatedAsync(dto);
+        await audit.LogAsync("BookingEndedEarly", "Booking", id.ToString(), $"Ended meeting early for '{dto.Title}'", ct);
         return dto;
     }
 
@@ -197,6 +204,7 @@ public class BookingService(
 
         var dto = await GetAsync(id, ct);
         await notifier.BookingUpdatedAsync(dto);
+        await audit.LogAsync("BookingCheckedIn", "Booking", id.ToString(), $"Checked in for '{dto.Title}'", ct);
         return dto;
     }
 
@@ -217,7 +225,11 @@ public class BookingService(
         booking.UpdatedAt = now;
         await db.SaveChangesAsync(ct);
 
-        await notifier.BookingCancelledAsync(await GetAsync(id, ct));
+        var dto = await GetAsync(id, ct);
+        await notifier.BookingCancelledAsync(dto);
+        await audit.LogAsync("BookingCancelled", "Booking", id.ToString(), $"Cancelled booking '{booking.Title}'", ct);
+        var ics = IcsCalendarBuilder.BuildIcs(dto.Id, dto.Title, dto.CabinName, "noreply@meetingrooms.local", dto.BookedByEmail, dto.StartTime, dto.EndTime, dto.Notes, "CANCEL");
+        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Cancelled: {dto.Title} ({dto.CabinName})", $"<p>Your booking for <strong>{dto.Title}</strong> in {dto.CabinName} has been cancelled.</p>", ics, $"cancel_{dto.Id:N}.ics"));
     }
 
     /// <summary>Marks bookings that were never checked in as no-shows, freeing the cabin. Called by a background job.</summary>
@@ -285,6 +297,9 @@ public class BookingService(
         logger.LogInformation("Booking {BookingId} created for cabin {CabinId} {Start}-{End} by {UserId}",
             id, cabinId, start, end, currentUser.UserId);
         await notifier.BookingCreatedAsync(dto);
+        await audit.LogAsync("BookingCreated", "Booking", id.ToString(), $"Booked '{dto.Title}' in {dto.CabinName}", ct);
+        var ics = IcsCalendarBuilder.BuildIcs(dto.Id, dto.Title, dto.CabinName, "noreply@meetingrooms.local", dto.BookedByEmail, dto.StartTime, dto.EndTime, dto.Notes, "REQUEST");
+        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Confirmed: {dto.Title} ({dto.CabinName})", $"<p>Your booking for <strong>{dto.Title}</strong> in {dto.CabinName} is confirmed from {rules.Format(dto.StartTime)} to {rules.Format(dto.EndTime)}.</p>", ics, $"meeting_{dto.Id:N}.ics"));
         return dto;
     }
 

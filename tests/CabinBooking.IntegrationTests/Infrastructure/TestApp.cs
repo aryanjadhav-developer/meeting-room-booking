@@ -17,6 +17,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.MsSql;
+using Xunit;
+
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace CabinBooking.IntegrationTests.Infrastructure;
 
@@ -92,12 +95,16 @@ public sealed class TestApp : WebApplicationFactory<Program>, IAsyncLifetime
         await db.Database.ExecuteSqlRawAsync("""
             DELETE FROM Bookings;
             DELETE FROM Users;
+            DELETE FROM AuditEntries;
+            DELETE FROM Settings;
             DELETE FROM Cabins WHERE Id > 3;
             UPDATE Cabins SET IsActive = 1,
                 Name = CASE Id WHEN 1 THEN 'Lunch Room' WHEN 2 THEN 'Conference Room' ELSE 'Cabin 3' END,
                 CapacityLabel = CASE Id WHEN 1 THEN '9+' WHEN 2 THEN '5+' ELSE '3-4' END;
             """);
         await AdminSeeder.SeedAdminAsync(scope.ServiceProvider);
+        var validator = Services.GetRequiredService<BookingRuleValidator>();
+        validator.ResetToDefaults();
     }
 
     public async Task InitializeAsync()

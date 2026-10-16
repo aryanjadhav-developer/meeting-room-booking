@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CabinBooking.Application.Services;
 
-public class UserService(IAppDbContext db, ICurrentUser currentUser)
+public class UserService(IAppDbContext db, ICurrentUser currentUser, IAuditLogger audit)
 {
     public async Task<IReadOnlyList<UserDto>> GetAllAsync(CancellationToken ct)
     {
@@ -24,6 +24,7 @@ public class UserService(IAppDbContext db, ICurrentUser currentUser)
         user.Role = request.Role;
         user.IsActive = request.IsActive;
         await db.SaveChangesAsync(ct);
+        await audit.LogAsync("UserUpdated", "User", user.Id.ToString(), $"Updated user '{user.Name}' ({user.Email}) to Role={user.Role}, Active={user.IsActive}", ct);
         return user.ToDto();
     }
 }

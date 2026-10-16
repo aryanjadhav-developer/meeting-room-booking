@@ -6,6 +6,7 @@ using CabinBooking.Api.Realtime;
 using CabinBooking.Application;
 using CabinBooking.Application.Abstractions;
 using CabinBooking.Application.Options;
+using CabinBooking.Application.Services;
 using CabinBooking.Infrastructure;
 using CabinBooking.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,6 +44,7 @@ builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddSingleton<IBookingNotifier, SignalRBookingNotifier>();
 builder.Services.AddHostedService<NoShowReleaseService>();
+builder.Services.AddHostedService<EmailBackgroundDispatcher>();
 
 // ---------- Auth ----------
 builder.Services
@@ -149,6 +151,8 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     }
     await AdminSeeder.SeedAdminAsync(scope.ServiceProvider);
     await DemoSeeder.SeedDemoAsync(scope.ServiceProvider);
+    var settingsService = scope.ServiceProvider.GetRequiredService<SettingsService>();
+    await settingsService.InitializeFromDatabaseAsync();
 }
 
 // ---------- Pipeline ----------

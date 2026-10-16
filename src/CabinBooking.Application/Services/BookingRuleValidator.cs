@@ -13,19 +13,68 @@ public class BookingRuleValidator
     private static readonly TimeSpan PastTolerance = TimeSpan.FromMinutes(2);
 
     private readonly BookingRulesOptions _rules;
+    private readonly BookingRulesOptions _initialDefaults;
     private readonly TimeProvider _clock;
 
     public BookingRuleValidator(IOptions<BookingRulesOptions> rules, TimeProvider clock)
     {
-        _rules = rules.Value;
-        _rules.WorkingDays = _rules.WorkingDays.Length > 0
-            ? _rules.WorkingDays.Distinct().ToArray()
+        var src = rules.Value;
+        var workingDays = src.WorkingDays.Length > 0
+            ? src.WorkingDays.Distinct().ToArray()
             : BookingRulesOptions.DefaultWorkingDays;
-        _rules.Projects = _rules.Projects.Length > 0
-            ? _rules.Projects.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray()
+        var projects = src.Projects.Length > 0
+            ? src.Projects.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray()
             : BookingRulesOptions.DefaultProjects;
+
+        _rules = new BookingRulesOptions
+        {
+            TimeZoneId = src.TimeZoneId,
+            OfficeStart = src.OfficeStart,
+            OfficeEnd = src.OfficeEnd,
+            WorkingDays = workingDays.ToArray(),
+            SlotMinutes = src.SlotMinutes,
+            MinDurationMinutes = src.MinDurationMinutes,
+            MaxDurationMinutes = src.MaxDurationMinutes,
+            MaxDaysAhead = src.MaxDaysAhead,
+            CheckInOpensMinutesBefore = src.CheckInOpensMinutesBefore,
+            AutoReleaseEnabled = src.AutoReleaseEnabled,
+            CheckInGraceMinutes = src.CheckInGraceMinutes,
+            Projects = projects.ToArray()
+        };
+
+        _initialDefaults = new BookingRulesOptions
+        {
+            TimeZoneId = _rules.TimeZoneId,
+            OfficeStart = _rules.OfficeStart,
+            OfficeEnd = _rules.OfficeEnd,
+            WorkingDays = workingDays.ToArray(),
+            SlotMinutes = _rules.SlotMinutes,
+            MinDurationMinutes = _rules.MinDurationMinutes,
+            MaxDurationMinutes = _rules.MaxDurationMinutes,
+            MaxDaysAhead = _rules.MaxDaysAhead,
+            CheckInOpensMinutesBefore = _rules.CheckInOpensMinutesBefore,
+            AutoReleaseEnabled = _rules.AutoReleaseEnabled,
+            CheckInGraceMinutes = _rules.CheckInGraceMinutes,
+            Projects = projects.ToArray()
+        };
+
         _clock = clock;
         Zone = TimeZoneInfo.FindSystemTimeZoneById(_rules.TimeZoneId);
+    }
+
+    public void ResetToDefaults()
+    {
+        _rules.OfficeStart = _initialDefaults.OfficeStart;
+        _rules.OfficeEnd = _initialDefaults.OfficeEnd;
+        _rules.WorkingDays = _initialDefaults.WorkingDays.ToArray();
+        _rules.SlotMinutes = _initialDefaults.SlotMinutes;
+        _rules.MinDurationMinutes = _initialDefaults.MinDurationMinutes;
+        _rules.MaxDurationMinutes = _initialDefaults.MaxDurationMinutes;
+        _rules.MaxDaysAhead = _initialDefaults.MaxDaysAhead;
+        _rules.CheckInOpensMinutesBefore = _initialDefaults.CheckInOpensMinutesBefore;
+        _rules.AutoReleaseEnabled = _initialDefaults.AutoReleaseEnabled;
+        _rules.CheckInGraceMinutes = _initialDefaults.CheckInGraceMinutes;
+        _rules.Projects = _initialDefaults.Projects.ToArray();
     }
 
     public TimeZoneInfo Zone { get; }
@@ -89,6 +138,30 @@ public class BookingRuleValidator
         _rules.TimeZoneId, _rules.OfficeStart, _rules.OfficeEnd, _rules.WorkingDays,
         _rules.SlotMinutes, _rules.MinDurationMinutes, _rules.MaxDurationMinutes, _rules.MaxDaysAhead,
         _rules.CheckInOpensMinutesBefore, _rules.AutoReleaseEnabled, _rules.CheckInGraceMinutes, _rules.Projects);
+
+    public void ApplyUpdate(UpdateSettingsRequest request)
+    {
+        if (request.OfficeEnd <= request.OfficeStart)
+            throw new AppValidationException("Office end time must be after office start time.");
+        if (request.SlotMinutes < 5 || request.SlotMinutes > 120)
+            throw new AppValidationException("Slot minutes must be between 5 and 120.");
+        if (request.MinDurationMinutes < request.SlotMinutes)
+            throw new AppValidationException("Min duration cannot be less than slot minutes.");
+        if (request.MaxDurationMinutes < request.MinDurationMinutes)
+            throw new AppValidationException("Max duration must be at least min duration.");
+
+        _rules.OfficeStart = request.OfficeStart;
+        _rules.OfficeEnd = request.OfficeEnd;
+        _rules.WorkingDays = request.WorkingDays.Length > 0 ? request.WorkingDays.Distinct().ToArray() : BookingRulesOptions.DefaultWorkingDays;
+        _rules.SlotMinutes = request.SlotMinutes;
+        _rules.MinDurationMinutes = request.MinDurationMinutes;
+        _rules.MaxDurationMinutes = request.MaxDurationMinutes;
+        _rules.MaxDaysAhead = request.MaxDaysAhead;
+        _rules.CheckInOpensMinutesBefore = request.CheckInOpensMinutesBefore;
+        _rules.AutoReleaseEnabled = request.AutoReleaseEnabled;
+        _rules.CheckInGraceMinutes = request.CheckInGraceMinutes;
+        _rules.Projects = request.Projects.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray();
+    }
 
     private DateOnly ToLocalDate(DateTimeOffset value) => DateOnly.FromDateTime(ToLocal(value).DateTime);
 

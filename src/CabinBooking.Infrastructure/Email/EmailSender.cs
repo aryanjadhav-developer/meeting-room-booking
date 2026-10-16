@@ -6,7 +6,7 @@ using MimeKit;
 
 namespace CabinBooking.Infrastructure.Email;
 
-public record SentEmail(string To, string Subject, string Body, DateTimeOffset SentAt);
+public record SentEmail(string To, string Subject, string Body, DateTimeOffset SentAt, string? AttachmentFileName = null);
 
 public interface IPreviewEmailStore
 {
@@ -19,9 +19,29 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
     private static readonly List<SentEmail> RecentEmails = new();
     private static readonly object SyncRoot = new();
 
-    public async Task SendEmailAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default)
+    public Task SendEmailAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default) =>
+        SendEmailInternalAsync(toEmail, subject, body, null, null, null, cancellationToken);
+
+    public Task SendEmailWithAttachmentAsync(
+        string toEmail,
+        string subject,
+        string body,
+        string attachmentContent,
+        string attachmentFileName,
+        string contentType,
+        CancellationToken cancellationToken = default) =>
+        SendEmailInternalAsync(toEmail, subject, body, attachmentContent, attachmentFileName, contentType, cancellationToken);
+
+    private async Task SendEmailInternalAsync(
+        string toEmail,
+        string subject,
+        string body,
+        string? attachmentContent,
+        string? attachmentFileName,
+        string? contentType,
+        CancellationToken cancellationToken)
     {
-        var email = new SentEmail(toEmail, subject, body, DateTimeOffset.UtcNow);
+        var email = new SentEmail(toEmail, subject, body, DateTimeOffset.UtcNow, attachmentFileName);
         lock (SyncRoot)
         {
             RecentEmails.Insert(0, email);
@@ -46,6 +66,11 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
             message.Subject = subject;
 
             var bodyBuilder = new BodyBuilder { HtmlBody = body };
+            if (!string.IsNullOrEmpty(attachmentContent) && !string.IsNullOrEmpty(attachmentFileName))
+            {
+                var mediaType = ContentType.Parse(contentType ?? "application/octet-stream");
+                bodyBuilder.Attachments.Add(attachmentFileName, System.Text.Encoding.UTF8.GetBytes(attachmentContent), mediaType);
+            }
             message.Body = bodyBuilder.ToMessageBody();
 
             using var client = new SmtpClient();

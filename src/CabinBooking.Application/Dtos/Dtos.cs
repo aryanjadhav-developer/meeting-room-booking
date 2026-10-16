@@ -81,3 +81,20 @@ public record HourlyLoadDto(int Hour, int BookingCount);
 public record TopUserDto(Guid UserId, string Name, string Email, int BookingCount, double BookedHours);
 
 public record UtilizationReportDto(DateOnly From, DateOnly To, IReadOnlyList<CabinUtilizationDto> Cabins, IReadOnlyList<HourlyLoadDto> HourlyLoad, IReadOnlyList<TopUserDto> TopUsers);
+
+// ---------- Audit ----------
+public record AuditEntryDto(Guid Id, Guid? UserId, string UserName, string Action, string EntityType, string EntityId, string Details, DateTimeOffset Timestamp);
+
+// ---------- Settings ----------
+public record UpdateSettingsRequest(
+    TimeOnly OfficeStart,
+    TimeOnly OfficeEnd,
+    DayOfWeek[] WorkingDays,
+    int SlotMinutes,
+    int MinDurationMinutes,
+    int MaxDurationMinutes,
+    int MaxDaysAhead,
+    int CheckInOpensMinutesBefore,
+    bool AutoReleaseEnabled,
+    int CheckInGraceMinutes,
+    string[] Projects);

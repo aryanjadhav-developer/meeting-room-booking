@@ -18,6 +18,18 @@ public class BookingsController(BookingService bookings) : ControllerBase
     [HttpGet("mine")]
     public Task<IReadOnlyList<BookingDto>> Mine([FromQuery] bool includePast, CancellationToken ct) => bookings.GetMineAsync(includePast, ct);
 
+    /// <summary>Export bookings in a date range as CSV.</summary>
+    [HttpGet("export/csv")]
+    public async Task<IActionResult> ExportCsv([FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, [FromQuery] int? cabinId, CancellationToken ct)
+    {
+        var rangeFrom = from ?? DateTimeOffset.UtcNow.AddDays(-30);
+        var rangeTo = to ?? DateTimeOffset.UtcNow.AddDays(30);
+        var data = await bookings.GetRangeAsync(rangeFrom, rangeTo, cabinId, ct);
+        var bytes = CabinBooking.Application.Common.CsvBuilder.BuildBookingsCsv(data);
+        var fileName = $"bookings_{rangeFrom:yyyyMMdd}_{rangeTo:yyyyMMdd}.csv";
+        return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
+
     [HttpGet("{id:guid}")]
     public Task<BookingDto> Get(Guid id, CancellationToken ct) => bookings.GetAsync(id, ct);
 
