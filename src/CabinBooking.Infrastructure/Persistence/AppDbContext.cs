@@ -1,0 +1,66 @@
+using CabinBooking.Application.Abstractions;
+using CabinBooking.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace CabinBooking.Infrastructure.Persistence;
+
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
+{
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Cabin> Cabins => Set<Cabin>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<User>(e =>
+        {
+            e.ToTable("Users");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Email).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => x.Email).IsUnique();
+            e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<Cabin>(e =>
+        {
+            e.ToTable("Cabins");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(60).IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.Description).HasMaxLength(300);
+            e.Property(x => x.Amenities).HasMaxLength(300);
+            e.Property(x => x.Color).HasMaxLength(7).IsRequired();
+            e.Property(x => x.CapacityLabel).HasMaxLength(20);
+
+            e.HasData(
+                new Cabin { Id = 1, Name = "Lunch Room", Description = "Large room for big groups", Capacity = 9, CapacityLabel = "9+", Amenities = "TV,Whiteboard", Color = "#1976d2" },
+                new Cabin { Id = 2, Name = "Conference Room", Description = "Meeting room with display", Capacity = 5, CapacityLabel = "5+", Amenities = "TV,Whiteboard", Color = "#2e7d32" },
+                new Cabin { Id = 3, Name = "Cabin 3", Description = "Small cabin for focused discussions", Capacity = 4, CapacityLabel = "3-4", Amenities = "", Color = "#ed6c02" });
+        });
+
+        modelBuilder.Entity<Booking>(e =>
+        {
+            e.ToTable("Bookings", t =>
+            {
+                t.HasCheckConstraint("CK_Bookings_EndAfterStart", "[EndTime] > [StartTime]");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.PurposeDetail).HasMaxLength(100);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.Ignore(x => x.Duration);
+
+            e.HasOne(x => x.Cabin).WithMany(c => c.Bookings).HasForeignKey(x => x.CabinId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.BookedBy).WithMany(u => u.Bookings).HasForeignKey(x => x.BookedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+            // Serves the overlap check (cabin + time range) and the timeline queries.
+            e.HasIndex(x => new { x.CabinId, x.Status, x.StartTime, x.EndTime });
+            e.HasIndex(x => new { x.BookedByUserId, x.StartTime });
+        });
+    }
+}
