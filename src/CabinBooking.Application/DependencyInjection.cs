@@ -1,4 +1,6 @@
 using CabinBooking.Application.Services;
+using CabinBooking.Application.Validation;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CabinBooking.Application;
@@ -9,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<BookingRuleValidator>();
+        services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
         services.AddScoped<BookingService>();
         services.AddScoped<CabinService>();
         services.AddScoped<AuthService>();

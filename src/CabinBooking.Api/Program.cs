@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using CabinBooking.Api.Auth;
 using CabinBooking.Api.Background;
 using CabinBooking.Api.Errors;
+using CabinBooking.Api.Filters;
 using CabinBooking.Api.Realtime;
 using CabinBooking.Application;
 using CabinBooking.Application.Abstractions;
@@ -14,6 +15,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Events;
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: Path.Combine(AppContext.BaseDirectory, "logs", "cabinbooking-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .CreateBootstrapLogger();
 
 // A Windows service starts in C:\Windows\System32, and a published exe may be started from anywhere, so point the
 // content root (appsettings, wwwroot) at the app folder. Under "dotnet run" the project folder stays the content root.
@@ -23,6 +39,16 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     Args = args,
     ContentRootPath = WindowsServiceHelpers.IsWindowsService() || isPublishedLayout ? AppContext.BaseDirectory : default
 });
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: Path.Combine(AppContext.BaseDirectory, "logs", "cabinbooking-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}"));
 builder.Host.UseWindowsService(o => o.ServiceName = "CabinBooking");
 
 // ---------- Options ----------
@@ -80,8 +106,11 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // ---------- Web ----------
-builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<FluentValidationFilter>();
+})
+.AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSignalR()
     .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
@@ -91,7 +120,12 @@ builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Cabin Booking API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Meeting Room / Cabin Booking API",
+        Version = "v1",
+        Description = "Real-time meeting room and cabin booking system with advisory locks, Identity authentication, SignalR, and dynamic policies."
+    });
     var scheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -103,6 +137,17 @@ builder.Services.AddSwaggerGen(c =>
     };
     c.AddSecurityDefinition("Bearer", scheme);
     c.AddSecurityRequirement(new OpenApiSecurityRequirement { [scheme] = [] });
+
+    var apiXml = Path.Combine(AppContext.BaseDirectory, "CabinBooking.Api.xml");
+    if (File.Exists(apiXml))
+    {
+        c.IncludeXmlComments(apiXml, includeControllerXmlComments: true);
+    }
+    var appXml = Path.Combine(AppContext.BaseDirectory, "CabinBooking.Application.xml");
+    if (File.Exists(appXml))
+    {
+        c.IncludeXmlComments(appXml);
+    }
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -157,6 +202,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 
 // ---------- Pipeline ----------
 app.UseExceptionHandler();
+app.UseSerilogRequestLogging();
 
 // Security headers
 app.Use(async (context, next) =>

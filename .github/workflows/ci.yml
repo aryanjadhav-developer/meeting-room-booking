@@ -25,8 +25,8 @@ jobs:
       - name: Build (Warnings As Errors)
         run: dotnet build --no-restore --configuration Release
 
-      - name: Run Tests (Testcontainers)
-        run: dotnet test --no-build --configuration Release --verbosity normal
+      - name: Run Tests (Testcontainers + Coverage)
+        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
 
   frontend:
     name: Frontend (React 19 + TypeScript)
@@ -50,6 +50,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Run Frontend Tests (Vitest)
+        run: npm test
 
       - name: Build Web Application
         run: npm run build
