@@ -17,10 +17,12 @@ public class ReportService(IAppDbContext db, BookingRuleValidator rules)
         var (_, rangeEnd) = rules.DayWindowUtc(to);
 
         var cabins = await db.Cabins.AsNoTracking().OrderBy(c => c.Name).ToListAsync(ct);
-        var bookings = await db.Bookings.AsNoTracking()
+        var allBookings = await db.Bookings.AsNoTracking()
             .Include(b => b.BookedBy)
-            .Where(b => b.StartTime >= rangeStart && b.StartTime < rangeEnd)
             .ToListAsync(ct);
+        var bookings = allBookings
+            .Where(b => b.StartTime >= rangeStart && b.StartTime < rangeEnd)
+            .ToList();
 
         var workingDays = Enumerable.Range(0, to.DayNumber - from.DayNumber + 1)
             .Select(i => from.AddDays(i))
