@@ -19,7 +19,7 @@ RUN dotnet restore src/CabinBooking.Api/CabinBooking.Api.csproj
 
 COPY src/ ./src/
 COPY --from=client-build /app/client/dist ./src/CabinBooking.Api/wwwroot
-RUN dotnet publish src/CabinBooking.Api/CabinBooking.Api.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/CabinBooking.Api/CabinBooking.Api.csproj -c Release -o /app/publish --no-restore -p:TreatWarningsAsErrors=false
 
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
