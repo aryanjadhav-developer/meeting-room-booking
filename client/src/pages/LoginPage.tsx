@@ -117,43 +117,6 @@ export function LoginPage() {
               {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
             </Button>
 
-            {mode === "login" && (
-              <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1, textAlign: "center", fontWeight: 500 }}>
-                  Live Demo Access
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="small"
-                    color="secondary"
-                    disabled={busy}
-                    onClick={() => {
-                      setEmail("demo.admin@example.com");
-                      setPassword("DemoAdmin123!");
-                      login("demo.admin@example.com", "DemoAdmin123!").catch((err) => setError((err as Error).message));
-                    }}
-                  >
-                    Try as Admin
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="small"
-                    color="primary"
-                    disabled={busy}
-                    onClick={() => {
-                      setEmail("alex.carter@example.com");
-                      setPassword("DemoPass123!");
-                      login("alex.carter@example.com", "DemoPass123!").catch((err) => setError((err as Error).message));
-                    }}
-                  >
-                    Try as Employee
-                  </Button>
-                </Stack>
-              </Box>
-            )}
           </Stack>
         </CardContent>
       </Card>
