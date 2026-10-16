@@ -1,6 +1,14 @@
-# Cabin Booking
+# Meeting Room Booking
 
-Book the office cabins for meetings and discussions. You can see who has booked which cabin and for how long, and every screen updates in real time.
+[![CI](https://github.com/aryanjadhav-developer/meeting-room-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/aryanjadhav-developer/meeting-room-booking/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/aryanjadhav-developer/meeting-room-booking/actions/workflows/codeql.yml/badge.svg)](https://github.com/aryanjadhav-developer/meeting-room-booking/actions/workflows/codeql.yml)
+![Tests](https://img.shields.io/badge/tests-118%20passing-brightgreen)
+![.NET 9](https://img.shields.io/badge/.NET-9.0-blue)
+![React 19](https://img.shields.io/badge/React-19-61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Book meeting rooms and discussion cabins in real time. Features live synchronization, DB advisory locks to prevent double-booking, multi-provider database support (SQLite zero-setup & SQL Server), and automated CI/CD.
 
 | Layer | Tech |
 |---|---|
