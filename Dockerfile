@@ -22,7 +22,7 @@ COPY --from=client-build /app/client/dist ./src/CabinBooking.Api/wwwroot
 RUN dotnet publish src/CabinBooking.Api/CabinBooking.Api.csproj -c Release -o /app/publish --no-restore -p:TreatWarningsAsErrors=false
 
 # Stage 3: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 COPY --from=dotnet-build /app/publish ./
 
