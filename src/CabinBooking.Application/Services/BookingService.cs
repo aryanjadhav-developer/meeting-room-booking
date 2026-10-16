@@ -29,23 +29,23 @@ public class BookingService(
         if (to <= from) throw new AppValidationException("'to' must be after 'from'.");
         if (to - from > TimeSpan.FromDays(62)) throw new AppValidationException("Please request at most 62 days at a time.");
 
-        var query = WithDetails()
-            .Where(b => b.Status != BookingStatus.Cancelled && b.StartTime < to && b.EndTime > from);
+        var query = WithDetails();
         if (cabinId is not null) query = query.Where(b => b.CabinId == cabinId);
 
-        var list = await query.OrderBy(b => b.StartTime).ToListAsync(ct);
+        var list = (await query.ToListAsync(ct))
+            .Where(b => b.StartTime < to && b.EndTime > from && b.Status != BookingStatus.Cancelled)
+            .OrderBy(b => b.StartTime).ToList();
         return list.Select(b => b.ToDto(rules.Now)).ToList();
     }
 
     public async Task<IReadOnlyList<BookingDto>> GetMineAsync(bool includePast, CancellationToken ct)
     {
         var now = rules.Now;
-        var query = WithDetails().Where(b => b.BookedByUserId == currentUser.UserId);
-        query = includePast
-            ? query.Where(b => b.StartTime > now.AddDays(-90))
-            : query.Where(b => b.EndTime > now && b.Status == BookingStatus.Confirmed);
-
-        var list = await query.OrderBy(b => b.StartTime).ToListAsync(ct);
+        var cutoff = now.AddDays(-90);
+        var all = await WithDetails().Where(b => b.BookedByUserId == currentUser.UserId).ToListAsync(ct);
+        var list = all
+            .Where(b => includePast ? b.StartTime > cutoff : b.EndTime > now && b.Status == BookingStatus.Confirmed)
+            .OrderBy(b => b.StartTime).ToList();
         return list.Select(b => b.ToDto(now)).ToList();
     }
 
@@ -61,11 +61,12 @@ public class BookingService(
         var (open, close) = rules.OfficeWindowUtc(date);
         var cursor = Max(open, RoundUpToSlot(rules.Now));
 
-        var busy = await db.Bookings.AsNoTracking()
-            .Where(b => b.CabinId == cabinId && b.Status == BookingStatus.Confirmed && b.StartTime < close && b.EndTime > open)
+        var busy = (await db.Bookings.AsNoTracking()
+            .Where(b => b.CabinId == cabinId)
+            .ToListAsync(ct))
+            .Where(b => b.StartTime < close && b.EndTime > open && b.Status == BookingStatus.Confirmed)
             .OrderBy(b => b.StartTime)
-            .Select(b => new { b.StartTime, b.EndTime })
-            .ToListAsync(ct);
+            .Select(b => new { b.StartTime, b.EndTime }).ToList();
 
         var free = new List<TimeRangeDto>();
         foreach (var b in busy)
@@ -239,9 +240,8 @@ public class BookingService(
 
         var now = rules.Now;
         var cutoff = now.AddMinutes(-rules.Rules.CheckInGraceMinutes);
-        var stale = await WithDetails(tracking: true)
-            .Where(b => b.Status == BookingStatus.Confirmed && b.CheckedInAt == null && b.StartTime <= cutoff && b.EndTime > now)
-            .ToListAsync(ct);
+        var stale = (await WithDetails(tracking: true).ToListAsync(ct))
+            .Where(b => b.CheckedInAt == null && b.StartTime <= cutoff && b.EndTime > now && b.Status == BookingStatus.Confirmed).ToList();
         if (stale.Count == 0) return 0;
 
         foreach (var b in stale)
@@ -305,13 +305,12 @@ public class BookingService(
 
     private async Task EnsureNoOverlapAsync(int cabinId, DateTimeOffset start, DateTimeOffset end, Guid? excludeId, CancellationToken ct)
     {
-        var clash = await WithDetails()
-            .Where(b => b.CabinId == cabinId
-                        && b.Status == BookingStatus.Confirmed
-                        && b.StartTime < end && b.EndTime > start
-                        && (excludeId == null || b.Id != excludeId))
+        var clash = (await WithDetails()
+            .Where(b => b.CabinId == cabinId && (excludeId == null || b.Id != excludeId))
+            .ToListAsync(ct))
+            .Where(b => b.Status == BookingStatus.Confirmed && b.StartTime < end && b.EndTime > start)
             .OrderBy(b => b.StartTime)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefault();
 
         if (clash is not null)
             throw new ConflictException(
@@ -324,9 +323,10 @@ public class BookingService(
         if (limit <= 0 || currentUser.IsAdmin) return;
 
         var (dayStart, dayEnd) = rules.DayWindowUtc(DateOnly.FromDateTime(rules.ToLocal(start).DateTime));
-        var count = await db.Bookings.CountAsync(b => b.BookedByUserId == currentUser.UserId
-                                                      && b.Status == BookingStatus.Confirmed
-                                                      && b.StartTime >= dayStart && b.StartTime < dayEnd, ct);
+        var count = (await db.Bookings.AsNoTracking()
+            .Where(b => b.BookedByUserId == currentUser.UserId)
+            .ToListAsync(ct))
+            .Count(b => b.Status == BookingStatus.Confirmed && b.StartTime >= dayStart && b.StartTime < dayEnd);
         if (count >= limit)
             throw new AppValidationException($"You can have at most {limit} bookings per day.");
     }

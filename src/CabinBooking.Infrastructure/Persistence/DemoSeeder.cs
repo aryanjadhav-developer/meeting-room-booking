@@ -117,7 +117,8 @@ public static class DemoSeeder
                 EndTime = today.AddHours(11).AddMinutes(30),
                 Status = BookingStatus.Confirmed,
                 CreatedAt = now.AddDays(-1),
-                UpdatedAt = now.AddDays(-1)
+                UpdatedAt = now.AddDays(-1),
+                RowVersion = Guid.NewGuid().ToByteArray()
             },
             new()
             {
@@ -129,7 +130,8 @@ public static class DemoSeeder
                 EndTime = today.AddHours(12),
                 Status = BookingStatus.Confirmed,
                 CreatedAt = now.AddDays(-1),
-                UpdatedAt = now.AddDays(-1)
+                UpdatedAt = now.AddDays(-1),
+                RowVersion = Guid.NewGuid().ToByteArray()
             },
             new()
             {
@@ -141,7 +143,8 @@ public static class DemoSeeder
                 EndTime = today.AddHours(15),
                 Status = BookingStatus.Confirmed,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
+                RowVersion = Guid.NewGuid().ToByteArray()
             },
             new()
             {
@@ -153,7 +156,8 @@ public static class DemoSeeder
                 EndTime = today.AddDays(1).AddHours(12).AddMinutes(30),
                 Status = BookingStatus.Confirmed,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
+                RowVersion = Guid.NewGuid().ToByteArray()
             },
             new()
             {
@@ -166,7 +170,8 @@ public static class DemoSeeder
                 EndTime = today.AddDays(1).AddHours(16),
                 Status = BookingStatus.Confirmed,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
+                RowVersion = Guid.NewGuid().ToByteArray()
             }
         };
 

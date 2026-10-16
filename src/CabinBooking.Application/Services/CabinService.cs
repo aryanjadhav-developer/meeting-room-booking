@@ -27,11 +27,11 @@ public class CabinService(IAppDbContext db, IBookingNotifier notifier, BookingRu
         var (_, endOfDay) = rules.DayWindowUtc(rules.Today);
 
         var cabins = await db.Cabins.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync(ct);
-        var bookings = await db.Bookings.AsNoTracking()
+        var bookings = (await db.Bookings.AsNoTracking()
             .Include(b => b.Cabin).Include(b => b.BookedBy)
-            .Where(b => b.Status == BookingStatus.Confirmed && b.EndTime > now && b.StartTime < endOfDay)
-            .OrderBy(b => b.StartTime)
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Where(b => b.EndTime > now && b.StartTime < endOfDay && b.Status == BookingStatus.Confirmed)
+            .OrderBy(b => b.StartTime).ToList();
 
         return cabins.Select(c =>
         {
