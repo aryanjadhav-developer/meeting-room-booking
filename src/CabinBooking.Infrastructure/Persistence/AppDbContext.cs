@@ -36,6 +36,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.Email).IsUnique();
             e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
             e.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.RefreshToken).HasMaxLength(200);
+            e.Property(x => x.PasswordResetToken).HasMaxLength(200);
         });
 
         modelBuilder.Entity<Cabin>(e =>

@@ -58,6 +58,7 @@ public sealed class TestApp : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("Jwt__SigningKey", new string('t', 64));
         Environment.SetEnvironmentVariable("Database__Provider", "SqlServer");
         Environment.SetEnvironmentVariable("Database__MigrateOnStartup", "true");
+        Environment.SetEnvironmentVariable("RateLimiting__Enabled", "false");
         Environment.SetEnvironmentVariable("BookingRules__AutoReleaseEnabled", "true");
         Environment.SetEnvironmentVariable("Logging__LogLevel__Default", "Warning");
         Environment.SetEnvironmentVariable("Admin__Email", AdminEmail);

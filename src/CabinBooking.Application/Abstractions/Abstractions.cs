@@ -47,3 +47,8 @@ public interface ITokenService
 {
     (string Token, DateTimeOffset ExpiresAt) CreateToken(User user);
 }
+
+public interface IEmailSender
+{
+    Task SendEmailAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default);
+}

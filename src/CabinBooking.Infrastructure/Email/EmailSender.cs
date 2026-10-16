@@ -1,0 +1,79 @@
+using CabinBooking.Application.Abstractions;
+using MailKit.Net.Smtp;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using MimeKit;
+
+namespace CabinBooking.Infrastructure.Email;
+
+public record SentEmail(string To, string Subject, string Body, DateTimeOffset SentAt);
+
+public interface IPreviewEmailStore
+{
+    IReadOnlyList<SentEmail> GetRecentEmails();
+    void Clear();
+}
+
+public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logger) : IEmailSender, IPreviewEmailStore
+{
+    private static readonly List<SentEmail> RecentEmails = new();
+    private static readonly object SyncRoot = new();
+
+    public async Task SendEmailAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default)
+    {
+        var email = new SentEmail(toEmail, subject, body, DateTimeOffset.UtcNow);
+        lock (SyncRoot)
+        {
+            RecentEmails.Insert(0, email);
+            if (RecentEmails.Count > 50) RecentEmails.RemoveAt(RecentEmails.Count - 1);
+        }
+
+        var smtpHost = configuration["Email:SmtpHost"];
+        if (string.IsNullOrWhiteSpace(smtpHost))
+        {
+            logger.LogInformation("No SMTP server configured. Email to {To} previewed in-memory: {Subject}", toEmail, subject);
+            return;
+        }
+
+        var smtpPort = int.TryParse(configuration["Email:SmtpPort"], out var p) ? p : 1025;
+        var fromAddress = configuration["Email:From"] ?? "noreply@meetingrooms.local";
+
+        try
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress("Meeting Room Booking", fromAddress));
+            message.To.Add(new MailboxAddress(toEmail, toEmail));
+            message.Subject = subject;
+
+            var bodyBuilder = new BodyBuilder { HtmlBody = body };
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using var client = new SmtpClient();
+            await client.ConnectAsync(smtpHost, smtpPort, false, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+
+            logger.LogInformation("Sent email to {To} via {Host}:{Port}", toEmail, smtpHost, smtpPort);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to send email to {To} via SMTP. Stored in preview.", toEmail);
+        }
+    }
+
+    public IReadOnlyList<SentEmail> GetRecentEmails()
+    {
+        lock (SyncRoot)
+        {
+            return RecentEmails.ToList();
+        }
+    }
+
+    public void Clear()
+    {
+        lock (SyncRoot)
+        {
+            RecentEmails.Clear();
+        }
+    }
+}

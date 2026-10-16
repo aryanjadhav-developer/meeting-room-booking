@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Link,
   Stack,
   Tab,
   Tabs,
@@ -103,6 +105,13 @@ export function LoginPage() {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               helperText={mode === "register" ? "At least 8 characters" : " "}
             />
+            {mode === "login" && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Link component={RouterLink} to="/forgot-password" variant="body2" underline="hover">
+                  Forgot password?
+                </Link>
+              </Box>
+            )}
             {error && <Alert severity="error">{error}</Alert>}
             <Button type="submit" variant="contained" size="large" disabled={busy}>
               {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}

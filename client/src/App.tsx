@@ -7,8 +7,10 @@ import { useRules } from "./hooks/queries";
 import { BookingHubProvider } from "./realtime/BookingHubProvider";
 import { AdminPage } from "./pages/AdminPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MyBookingsPage } from "./pages/MyBookingsPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { TimelinePage } from "./pages/TimelinePage";
 
 const Centered = ({ children }: { children: ReactNode }) => (
@@ -23,7 +25,15 @@ export function App() {
         <CircularProgress />
       </Centered>
     );
-  if (!user) return <LoginPage />;
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
+  }
   return <SignedInApp />;
 }
 

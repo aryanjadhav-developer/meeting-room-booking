@@ -20,7 +20,11 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Connection string 'CabinBooking' is required when Database:Provider is SqlServer.");
 
             // No retrying execution strategy: SqlServerCabinLock opens its own transaction, which retry strategies don't allow.
-            services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connectionString));
+            services.AddDbContext<AppDbContext>(o =>
+            {
+                o.UseSqlServer(connectionString);
+                o.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
             services.AddScoped<ICabinLock, SqlServerCabinLock>();
         }
         else
@@ -30,12 +34,19 @@ public static class DependencyInjection
                 ? "Data Source=CabinBooking.db"
                 : connectionString;
 
-            services.AddDbContext<AppDbContext>(o => o.UseSqlite(sqliteConn));
+            services.AddDbContext<AppDbContext>(o =>
+            {
+                o.UseSqlite(sqliteConn);
+                o.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
             services.AddScoped<ICabinLock, SqliteCabinLock>();
         }
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddSingleton<IPasswordService, PasswordService>();
+        services.AddSingleton<Email.EmailSender>();
+        services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<Email.EmailSender>());
+        services.AddSingleton<Email.IPreviewEmailStore>(sp => sp.GetRequiredService<Email.EmailSender>());
         return services;
     }
 }

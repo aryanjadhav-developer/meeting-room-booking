@@ -47,7 +47,36 @@ export const setUnauthorizedHandler = (fn: (reason: string) => void) => {
   onUnauthorized = fn;
 };
 
-async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefreshToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as AuthResponse;
+        tokenStore.set(data.token);
+        return data.token;
+      }
+    } catch {
+      /* network or parsing error */
+    } finally {
+      refreshPromise = null;
+    }
+    return null;
+  })();
+
+  return refreshPromise;
+}
+
+async function request<T>(method: string, url: string, body?: unknown, isRetry = false): Promise<T> {
   const token = tokenStore.get();
   const res = await fetch(url, {
     method,
@@ -55,11 +84,23 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    credentials: "include",
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  // Login/register failures are form errors, not a lost session.
-  if (res.status === 401 && url !== "/api/auth/login" && url !== "/api/auth/register") {
+  // Check if session can be refreshed transparently on 401
+  if (
+    res.status === 401 &&
+    !isRetry &&
+    url !== "/api/auth/login" &&
+    url !== "/api/auth/register" &&
+    url !== "/api/auth/refresh"
+  ) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      return request<T>(method, url, body, true);
+    }
+
     let reason = "Your session has expired. Please sign in again.";
     try {
       reason = (await res.json()).detail || reason;
@@ -69,6 +110,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     onUnauthorized?.(reason);
     throw new ApiError(401, reason);
   }
+
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
@@ -96,6 +138,14 @@ export const api = {
     request<AuthResponse>("POST", "/api/auth/login", { email, password }),
   register: (name: string, email: string, password: string) =>
     request<AuthResponse>("POST", "/api/auth/register", { name, email, password }),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>("POST", "/api/auth/forgot-password", { email }),
+  resetPassword: (email: string, token: string, newPassword: string) =>
+    request<{ message: string }>("POST", "/api/auth/reset-password", { email, token, newPassword }),
+  logout: () =>
+    request<void>("POST", "/api/auth/logout"),
+  previewEmails: () =>
+    request<Array<{ to: string; subject: string; body: string; sentAt: string }>>("GET", "/api/auth/preview-emails"),
   me: () => request<User>("GET", "/api/auth/me"),
 
   // config
