@@ -32,7 +32,7 @@ Services started:
 
 1. Create a free account at [Render.com](https://render.com).
 2. Connect your GitHub repository.
-3. Choose **Blueprint** deployment: Render will automatically detect [`render.yaml`](file:///C:/Users/Zingworks/Documents/CabinBooking/render.yaml).
+3. Choose **Blueprint** deployment: Render will automatically detect [`render.yaml`](../render.yaml).
 4. Environment variables configured automatically:
    - `Database__Provider=Sqlite`
    - `Demo__Enabled=true`

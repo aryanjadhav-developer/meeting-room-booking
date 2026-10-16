@@ -163,7 +163,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ## 📖 Architecture Decision Records (ADRs)
 
-Key architectural decisions are documented in [`docs/adr/`](file:///C:/Users/Zingworks/Documents/CabinBooking/docs/adr/):
+Key architectural decisions are documented in [`docs/adr/`](docs/adr/):
 - [ADR 0001: SQL Application Locks for Concurrency Control](docs/adr/0001-sql-app-lock-concurrency.md)
 - [ADR 0002: Direct EF Core Usage vs Generic Repository Pattern](docs/adr/0002-direct-ef-core-vs-repository.md)
 - [ADR 0003: SignalR Realtime Architecture for Multi-Client Synchronization](docs/adr/0003-signalr-realtime-architecture.md)
