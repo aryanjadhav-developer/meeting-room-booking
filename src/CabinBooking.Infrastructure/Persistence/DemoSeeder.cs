@@ -19,7 +19,6 @@ public static class DemoSeeder
         var clock = services.GetRequiredService<TimeProvider>();
         var passwords = services.GetRequiredService<IPasswordService>();
 
-        // Ensure cabins exist
         if (!await db.Cabins.AnyAsync())
         {
             db.Cabins.AddRange(
@@ -30,152 +29,20 @@ public static class DemoSeeder
             await db.SaveChangesAsync();
         }
 
-        // Demo admin
-        var admin = await db.Users.FirstOrDefaultAsync(u => u.Email == "demo.admin@example.com");
-        if (admin is null)
+        if (!await db.Users.AnyAsync(u => u.Email == "aryanjadhav4305@gmail.com"))
         {
-            admin = new User
+            var admin = new User
             {
                 Id = Guid.NewGuid(),
-                Name = "Demo Administrator",
-                Email = "demo.admin@example.com",
+                Name = "Aryan Jadhav",
+                Email = "aryanjadhav4305@gmail.com",
                 Role = UserRole.Admin,
                 IsActive = true,
                 CreatedAt = clock.GetUtcNow()
             };
-            admin.PasswordHash = passwords.Hash(admin, "DemoAdmin123!");
+            admin.PasswordHash = passwords.Hash(admin, "Admin@123");
             db.Users.Add(admin);
+            await db.SaveChangesAsync();
         }
-
-        // Demo users (fictional)
-        var alex = await db.Users.FirstOrDefaultAsync(u => u.Email == "alex.carter@example.com");
-        if (alex is null)
-        {
-            alex = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Alex Carter",
-                Email = "alex.carter@example.com",
-                Role = UserRole.Employee,
-                IsActive = true,
-                CreatedAt = clock.GetUtcNow()
-            };
-            alex.PasswordHash = passwords.Hash(alex, "DemoPass123!");
-            db.Users.Add(alex);
-        }
-
-        var priya = await db.Users.FirstOrDefaultAsync(u => u.Email == "priya.shah@example.com");
-        if (priya is null)
-        {
-            priya = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Priya Shah",
-                Email = "priya.shah@example.com",
-                Role = UserRole.Employee,
-                IsActive = true,
-                CreatedAt = clock.GetUtcNow()
-            };
-            priya.PasswordHash = passwords.Hash(priya, "DemoPass123!");
-            db.Users.Add(priya);
-        }
-
-        var jordan = await db.Users.FirstOrDefaultAsync(u => u.Email == "jordan.lee@example.com");
-        if (jordan is null)
-        {
-            jordan = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Jordan Lee",
-                Email = "jordan.lee@example.com",
-                Role = UserRole.Employee,
-                IsActive = true,
-                CreatedAt = clock.GetUtcNow()
-            };
-            jordan.PasswordHash = passwords.Hash(jordan, "DemoPass123!");
-            db.Users.Add(jordan);
-        }
-
-        await db.SaveChangesAsync();
-
-        // If bookings are already seeded, do not duplicate
-        if (await db.Bookings.AnyAsync())
-            return;
-
-        var now = clock.GetUtcNow();
-        var today = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.FromHours(5.5)); // IST base
-
-        var demoBookings = new List<Booking>
-        {
-            new()
-            {
-                CabinId = 1,
-                BookedByUserId = alex.Id,
-                Title = "Project Alpha - Sprint Planning",
-                Purpose = BookingPurpose.Meeting,
-                StartTime = today.AddHours(10),
-                EndTime = today.AddHours(11).AddMinutes(30),
-                Status = BookingStatus.Confirmed,
-                CreatedAt = now.AddDays(-1),
-                UpdatedAt = now.AddDays(-1),
-                RowVersion = Guid.NewGuid().ToByteArray()
-            },
-            new()
-            {
-                CabinId = 2,
-                BookedByUserId = priya.Id,
-                Title = "Project Beta - Architecture Sync",
-                Purpose = BookingPurpose.Discussion,
-                StartTime = today.AddHours(11),
-                EndTime = today.AddHours(12),
-                Status = BookingStatus.Confirmed,
-                CreatedAt = now.AddDays(-1),
-                UpdatedAt = now.AddDays(-1),
-                RowVersion = Guid.NewGuid().ToByteArray()
-            },
-            new()
-            {
-                CabinId = 3,
-                BookedByUserId = jordan.Id,
-                Title = "Candidate Technical Interview",
-                Purpose = BookingPurpose.Interview,
-                StartTime = today.AddHours(14),
-                EndTime = today.AddHours(15),
-                Status = BookingStatus.Confirmed,
-                CreatedAt = now,
-                UpdatedAt = now,
-                RowVersion = Guid.NewGuid().ToByteArray()
-            },
-            new()
-            {
-                CabinId = 1,
-                BookedByUserId = priya.Id,
-                Title = "Client Progress Review",
-                Purpose = BookingPurpose.Meeting,
-                StartTime = today.AddDays(1).AddHours(11),
-                EndTime = today.AddDays(1).AddHours(12).AddMinutes(30),
-                Status = BookingStatus.Confirmed,
-                CreatedAt = now,
-                UpdatedAt = now,
-                RowVersion = Guid.NewGuid().ToByteArray()
-            },
-            new()
-            {
-                CabinId = 2,
-                BookedByUserId = alex.Id,
-                Title = "Design Jam & UX Walkthrough",
-                Purpose = BookingPurpose.Other,
-                PurposeDetail = "Design wireframes critique",
-                StartTime = today.AddDays(1).AddHours(15),
-                EndTime = today.AddDays(1).AddHours(16),
-                Status = BookingStatus.Confirmed,
-                CreatedAt = now,
-                UpdatedAt = now,
-                RowVersion = Guid.NewGuid().ToByteArray()
-            }
-        };
-
-        db.Bookings.AddRange(demoBookings);
-        await db.SaveChangesAsync();
     }
 }
