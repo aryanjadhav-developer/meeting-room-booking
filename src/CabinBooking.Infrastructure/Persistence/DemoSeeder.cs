@@ -30,6 +30,23 @@ public static class DemoSeeder
             await db.SaveChangesAsync();
         }
 
+        // Demo admin
+        var admin = await db.Users.FirstOrDefaultAsync(u => u.Email == "demo.admin@example.com");
+        if (admin is null)
+        {
+            admin = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Demo Administrator",
+                Email = "demo.admin@example.com",
+                Role = UserRole.Admin,
+                IsActive = true,
+                CreatedAt = clock.GetUtcNow()
+            };
+            admin.PasswordHash = passwords.Hash(admin, "DemoAdmin123!");
+            db.Users.Add(admin);
+        }
+
         // Demo users (fictional)
         var alex = await db.Users.FirstOrDefaultAsync(u => u.Email == "alex.carter@example.com");
         if (alex is null)

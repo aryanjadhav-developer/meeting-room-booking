@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: meeting-room-booking
+    runtime: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:10000
+      - key: Database__Provider
+        value: Sqlite
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: Demo__Enabled
+        value: "true"
+      - key: RateLimiting__Enabled
+        value: "true"
+      - key: Jwt__SigningKey
+        generateValue: true
+      - key: Jwt__Issuer
+        value: CabinBooking
+      - key: Jwt__Audience
+        value: CabinBooking

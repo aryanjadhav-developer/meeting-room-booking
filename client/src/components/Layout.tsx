@@ -17,6 +17,7 @@ import {
 import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
 import { useAuth } from "../auth/AuthContext";
 import { useHubStatus, type HubStatus } from "../realtime/BookingHubProvider";
+import { PreviewEmailsDialog } from "./PreviewEmailsDialog";
 
 const LINKS = [
   { to: "/", label: "Live board" },
@@ -100,6 +101,8 @@ export function Layout() {
               }
             />
           </Tooltip>
+
+          <PreviewEmailsDialog />
 
           <IconButton onClick={(e) => setAnchor(e.currentTarget)} size="small" aria-label="Account">
             <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: 14 }}>
