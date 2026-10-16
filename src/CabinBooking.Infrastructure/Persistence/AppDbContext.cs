@@ -10,6 +10,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Cabin> Cabins => Set<Cabin>();
     public DbSet<Booking> Bookings => Set<Booking>();
 
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            foreach (var entry in ChangeTracker.Entries<Booking>())
+            {
+                if (entry.State is EntityState.Added or EntityState.Modified)
+                {
+                    entry.Entity.RowVersion = Guid.NewGuid().ToByteArray();
+                }
+            }
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(e =>

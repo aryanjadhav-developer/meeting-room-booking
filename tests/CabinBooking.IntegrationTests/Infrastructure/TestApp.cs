@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Testcontainers.MsSql;
 
 namespace CabinBooking.IntegrationTests.Infrastructure;
 
@@ -31,8 +32,9 @@ public sealed record Session(HttpClient Http, UserDto User, string Token);
 /// Hosts the real API in-process against a dedicated SQL Server database (CabinBookingDb_Tests),
 /// with a controllable clock. The no-show background job is removed; tests trigger it explicitly.
 /// </summary>
-public sealed class TestApp : WebApplicationFactory<Program>
+public sealed class TestApp : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static MsSqlContainer? _msSqlContainer;
     public const string Password = "Passw0rd!test";
     public const string AdminEmail = "admin@example.test";
     public static readonly TimeSpan Ist = TimeSpan.FromHours(5.5);
@@ -54,6 +56,7 @@ public sealed class TestApp : WebApplicationFactory<Program>
                    ?? "Server=localhost;Database=CabinBookingDb_Tests;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True";
         Environment.SetEnvironmentVariable("ConnectionStrings__CabinBooking", conn);
         Environment.SetEnvironmentVariable("Jwt__SigningKey", new string('t', 64));
+        Environment.SetEnvironmentVariable("Database__Provider", "SqlServer");
         Environment.SetEnvironmentVariable("Database__MigrateOnStartup", "true");
         Environment.SetEnvironmentVariable("BookingRules__AutoReleaseEnabled", "true");
         Environment.SetEnvironmentVariable("Logging__LogLevel__Default", "Warning");
@@ -94,6 +97,34 @@ public sealed class TestApp : WebApplicationFactory<Program>
                 CapacityLabel = CASE Id WHEN 1 THEN '9+' WHEN 2 THEN '5+' ELSE '3-4' END;
             """);
         await AdminSeeder.SeedAdminAsync(scope.ServiceProvider);
+    }
+
+    public async Task InitializeAsync()
+    {
+        var existing = Environment.GetEnvironmentVariable("CABINBOOKING_TEST_DB");
+        if (string.IsNullOrWhiteSpace(existing))
+        {
+            try
+            {
+                _msSqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
+                    .Build();
+                await _msSqlContainer.StartAsync();
+                Environment.SetEnvironmentVariable("ConnectionStrings__CabinBooking", _msSqlContainer.GetConnectionString());
+            }
+            catch
+            {
+                _msSqlContainer = null;
+            }
+        }
+    }
+
+    public new async Task DisposeAsync()
+    {
+        if (_msSqlContainer is not null)
+        {
+            await _msSqlContainer.DisposeAsync();
+        }
+        await base.DisposeAsync();
     }
 
     public async Task<Session> LoginAsync(string email, string password = Password)

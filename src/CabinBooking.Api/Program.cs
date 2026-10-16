@@ -113,8 +113,17 @@ var app = builder.Build();
 if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 {
     using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (db.Database.IsSqlite())
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    else
+    {
+        await db.Database.MigrateAsync();
+    }
     await AdminSeeder.SeedAdminAsync(scope.ServiceProvider);
+    await DemoSeeder.SeedDemoAsync(scope.ServiceProvider);
 }
 
 // ---------- Pipeline ----------

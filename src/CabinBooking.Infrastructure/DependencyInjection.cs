@@ -11,13 +11,30 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("CabinBooking")
-            ?? throw new InvalidOperationException("Connection string 'CabinBooking' is not configured.");
+        var provider = configuration["Database:Provider"] ?? "Sqlite";
+        var connectionString = configuration.GetConnectionString("CabinBooking");
 
-        // No retrying execution strategy: SqlServerCabinLock opens its own transaction, which retry strategies don't allow.
-        services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connectionString));
+        if (string.Equals(provider, "SqlServer", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException("Connection string 'CabinBooking' is required when Database:Provider is SqlServer.");
+
+            // No retrying execution strategy: SqlServerCabinLock opens its own transaction, which retry strategies don't allow.
+            services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connectionString));
+            services.AddScoped<ICabinLock, SqlServerCabinLock>();
+        }
+        else
+        {
+            // Default: SQLite provider for zero-setup execution
+            var sqliteConn = string.IsNullOrWhiteSpace(connectionString)
+                ? "Data Source=CabinBooking.db"
+                : connectionString;
+
+            services.AddDbContext<AppDbContext>(o => o.UseSqlite(sqliteConn));
+            services.AddScoped<ICabinLock, SqliteCabinLock>();
+        }
+
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
-        services.AddScoped<ICabinLock, SqlServerCabinLock>();
         services.AddSingleton<IPasswordService, PasswordService>();
         return services;
     }

@@ -1,0 +1,14 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/publish
+**/backups
+**/TestResults
+client/node_modules
+client/dist
+*.db
+*.db-shm
+*.db-wal
+appsettings.Development.json
+appsettings.Production.json
