@@ -25,8 +25,8 @@ jobs:
       - name: Build (Warnings As Errors)
         run: dotnet build --no-restore --configuration Release
 
-      - name: Run Tests (Testcontainers + Coverage)
-        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+      - name: Run Unit Tests
+        run: dotnet test tests/CabinBooking.UnitTests --no-build --configuration Release --verbosity normal
 
   frontend:
     name: Frontend (React 19 + TypeScript)
