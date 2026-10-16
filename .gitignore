@@ -1,0 +1,40 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+publish/
+client/dist/
+src/CabinBooking.Api/wwwroot/
+
+# Visual Studio / IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node / Client
+node_modules/
+.npm/
+
+# Local configuration & secrets
+src/CabinBooking.Api/appsettings.Development.json
+appsettings.Production.json
+*.local.json
+.env
+.env.*
+!.env.example
+
+# Test results & coverage
+TestResults/
+*.trx
+coverage/
+
+# Local databases
+backups/
+*.db
+*.db-shm
+*.db-wal
+
+# OS files
+.DS_Store
+Thumbs.db
