@@ -18,7 +18,7 @@ services:
         value: "true"
       - key: RateLimiting__Enabled
         value: "true"
-      - key: Resend__ApiKey
+      - key: Brevo__ApiKey
         sync: false
       - key: Cors__AllowedOrigins__0
         value: https://meeting-room-booking-fjrr.onrender.com

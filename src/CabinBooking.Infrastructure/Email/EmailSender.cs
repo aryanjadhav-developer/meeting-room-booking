@@ -50,44 +50,45 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
             if (RecentEmails.Count > 50) RecentEmails.RemoveAt(RecentEmails.Count - 1);
         }
 
-        var resendApiKey = configuration["Resend:ApiKey"];
-        if (!string.IsNullOrWhiteSpace(resendApiKey))
+        var brevoApiKey = configuration["Brevo:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(brevoApiKey))
         {
-            await SendViaResendAsync(resendApiKey, toEmail, subject, body, cancellationToken);
+            await SendViaBrevoAsync(brevoApiKey, toEmail, subject, body, cancellationToken);
             return;
         }
 
         logger.LogInformation("No email provider configured. Email to {To} previewed in-memory: {Subject}", toEmail, subject);
     }
 
-    private async Task SendViaResendAsync(string apiKey, string toEmail, string subject, string body, CancellationToken cancellationToken)
+    private async Task SendViaBrevoAsync(string apiKey, string toEmail, string subject, string body, CancellationToken cancellationToken)
     {
-        var fromAddress = configuration["Email:From"] ?? "onboarding@resend.dev";
+        var fromAddress = configuration["Email:From"] ?? "onboarding@brevo.com";
+        var fromName = "Meeting Room Booking";
         try
         {
             var payload = JsonSerializer.Serialize(new
             {
-                from = $"Meeting Room Booking <{fromAddress}>",
-                to = new[] { toEmail },
+                sender = new { name = fromName, email = fromAddress },
+                to = new[] { new { email = toEmail } },
                 subject,
-                html = body
+                htmlContent = body
             });
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
+            request.Headers.Add("api-key", apiKey);
             request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
             using var response = await Http.SendAsync(request, cancellationToken);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (response.IsSuccessStatusCode)
-                logger.LogInformation("Sent email to {To} via Resend", toEmail);
+                logger.LogInformation("Sent email to {To} via Brevo", toEmail);
             else
-                logger.LogWarning("Failed to send email to {To} via Resend: {Status} {Body}", toEmail, (int)response.StatusCode, responseBody);
+                logger.LogWarning("Failed to send email to {To} via Brevo: {Status} {Body}", toEmail, (int)response.StatusCode, responseBody);
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Failed to send email to {To} via Resend: {Error}", toEmail, ex.ToString());
+            logger.LogWarning("Failed to send email to {To} via Brevo: {Error}", toEmail, ex.ToString());
         }
     }
 
