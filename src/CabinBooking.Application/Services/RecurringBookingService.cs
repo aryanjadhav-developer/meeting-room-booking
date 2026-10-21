@@ -152,6 +152,12 @@ public class RecurringBookingService(
             var to = rb.EndDate < horizon ? rb.EndDate : horizon;
             var alreadyDone = rb.Instances.Select(i => i.Date).ToHashSet();
 
+            // DateTimeOffset comparisons are not translatable by the SQLite EF Core provider,
+            // so load confirmed bookings for this cabin into memory and check conflicts in-process.
+            var cabinBookings = await db.Bookings
+                .Where(b => b.CabinId == rb.CabinId && b.Status == BookingStatus.Confirmed)
+                .ToListAsync(ct);
+
             for (var d = from; d <= to; d = d.AddDays(1))
             {
                 if (!days.Contains((int)d.DayOfWeek)) continue;
@@ -160,10 +166,7 @@ public class RecurringBookingService(
                 var startUtc = ToUtc(d, rb.StartMinuteOfDay);
                 var endUtc = startUtc.AddMinutes(rb.DurationMinutes);
 
-                var conflict = await db.Bookings.AnyAsync(b =>
-                    b.CabinId == rb.CabinId &&
-                    b.Status == BookingStatus.Confirmed &&
-                    b.StartTime < endUtc && b.EndTime > startUtc, ct);
+                var conflict = cabinBookings.Any(b => b.StartTime < endUtc && b.EndTime > startUtc);
 
                 var instance = new RecurringBookingInstance
                 {
