@@ -136,11 +136,14 @@ public class RecurringBookingService(
         var horizon = today.AddDays(daysAhead);
         var created = 0;
 
-        var schedules = await db.RecurringBookings
+        // DateOnly comparisons are not translatable by the SQLite EF Core provider,
+        // so filter IsActive in SQL and apply the date-range check in-process.
+        var all = await db.RecurringBookings
             .Include(r => r.Instances)
             .Include(r => r.User)
-            .Where(r => r.IsActive && r.StartDate <= horizon && r.EndDate >= today)
+            .Where(r => r.IsActive)
             .ToListAsync(ct);
+        var schedules = all.Where(r => r.StartDate <= horizon && r.EndDate >= today).ToList();
 
         foreach (var rb in schedules)
         {
