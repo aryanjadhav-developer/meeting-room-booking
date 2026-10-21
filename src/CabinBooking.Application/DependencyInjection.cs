@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<CabinService>();
         services.AddScoped<AuthService>();
         services.AddScoped<UserService>();
+        services.AddScoped<ProjectService>();
         services.AddScoped<ReportService>();
         services.AddScoped<AuditService>();
         services.AddScoped<SettingsService>();

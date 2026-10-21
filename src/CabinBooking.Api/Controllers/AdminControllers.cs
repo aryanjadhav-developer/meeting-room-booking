@@ -14,8 +14,46 @@ public class UsersController(UserService users) : ControllerBase
     [HttpGet]
     public Task<IReadOnlyList<UserDto>> GetAll(CancellationToken ct) => users.GetAllAsync(ct);
 
+    [HttpPost]
+    public Task<UserDto> Create(CreateUserRequest request, CancellationToken ct) => users.CreateAsync(request, ct);
+
     [HttpPut("{id:guid}")]
     public Task<UserDto> Update(Guid id, UpdateUserRequest request, CancellationToken ct) => users.UpdateAsync(id, request, ct);
+}
+
+[ApiController]
+[Route("api/directory")]
+[Authorize]
+public class DirectoryController(UserService users) : ControllerBase
+{
+    /// <summary>Active employees (name + e-mail) for the attendee picker.</summary>
+    [HttpGet]
+    public Task<IReadOnlyList<DirectoryUserDto>> Get(CancellationToken ct) => users.GetDirectoryAsync(ct);
+}
+
+[ApiController]
+[Route("api/projects")]
+[Authorize]
+public class ProjectsController(ProjectService projects) : ControllerBase
+{
+    [HttpGet]
+    public Task<IReadOnlyList<ProjectDto>> GetAll(CancellationToken ct) => projects.GetAllAsync(ct);
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public Task<ProjectDto> Create(UpsertProjectRequest request, CancellationToken ct) => projects.CreateAsync(request, ct);
+
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public Task<ProjectDto> Update(int id, UpsertProjectRequest request, CancellationToken ct) => projects.UpdateAsync(id, request, ct);
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        await projects.DeleteAsync(id, ct);
+        return NoContent();
+    }
 }
 
 [ApiController]

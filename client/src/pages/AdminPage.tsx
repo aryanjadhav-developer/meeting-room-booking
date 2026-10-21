@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -33,7 +34,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../api/client";
-import type { Cabin, UpsertCabin, UserRole, UpdateSettingsRequest } from "../api/types";
+import type { Cabin, DirectoryUser, Project, UpsertCabin, UserRole, UpdateSettingsRequest } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useNotify } from "../components/Notifier";
 import { useCabins } from "../hooks/queries";
@@ -41,7 +42,7 @@ import { capacityText } from "../utils/format";
 import { office } from "../utils/time";
 
 export function AdminPage() {
-  const [tab, setTab] = useState<"reports" | "cabins" | "users" | "audit" | "settings">("reports");
+  const [tab, setTab] = useState<"reports" | "cabins" | "users" | "projects" | "audit" | "settings">("reports");
   return (
     <Stack spacing={2}>
       <Typography variant="h5">Admin</Typography>
@@ -49,12 +50,14 @@ export function AdminPage() {
         <Tab value="reports" label="Utilisation" />
         <Tab value="cabins" label="Cabins" />
         <Tab value="users" label="Users" />
+        <Tab value="projects" label="Projects" />
         <Tab value="audit" label="Audit Log" />
         <Tab value="settings" label="Settings" />
       </Tabs>
       {tab === "reports" && <ReportsTab />}
       {tab === "cabins" && <CabinsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "projects" && <ProjectsTab />}
       {tab === "audit" && <AuditTab />}
       {tab === "settings" && <SettingsTab />}
     </Stack>
@@ -420,7 +423,52 @@ function UsersTab() {
     onError: (e) => notify((e as Error).message, "error"),
   });
 
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "Employee" as UserRole });
+  const create = useMutation({
+    mutationFn: () => api.createUser(form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["directory"] });
+      notify("Employee added");
+      setAdding(false);
+      setForm({ name: "", email: "", password: "", role: "Employee" });
+    },
+    onError: (e) => notify((e as Error).message, "error"),
+  });
+
   return (
+    <Stack spacing={2}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAdding(true)}>
+          Add employee
+        </Button>
+      </Box>
+      <Dialog open={adding} onClose={() => setAdding(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Add employee</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <TextField label="E-mail" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <TextField
+              label="Temporary password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              helperText="At least 8 characters. Share it with the employee."
+            />
+            <TextField select label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
+              <MenuItem value="Employee">Employee</MenuItem>
+              <MenuItem value="Admin">Admin</MenuItem>
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAdding(false)}>Cancel</Button>
+          <Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending}>
+            {create.isPending ? "Adding…" : "Add"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     <TableContainer component={Paper} variant="outlined">
       <Table>
         <TableHead>
@@ -468,6 +516,116 @@ function UsersTab() {
         </TableBody>
       </Table>
     </TableContainer>
+    </Stack>
+  );
+}
+
+// ------------------------------------------------------------------ projects
+
+function ProjectsTab() {
+  const qc = useQueryClient();
+  const notify = useNotify();
+  const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: api.projects });
+  const { data: people = [] } = useQuery({ queryKey: ["directory"], queryFn: api.directory });
+  const [editing, setEditing] = useState<Project | "new" | null>(null);
+  const [name, setName] = useState("");
+  const [members, setMembers] = useState<DirectoryUser[]>([]);
+
+  const open = (p: Project | "new") => {
+    setEditing(p);
+    setName(p === "new" ? "" : p.name);
+    setMembers(p === "new" ? [] : people.filter((u) => p.memberUserIds.includes(u.id)));
+  };
+
+  const done = (msg: string) => {
+    qc.invalidateQueries({ queryKey: ["projects"] });
+    notify(msg);
+    setEditing(null);
+  };
+  const fail = (e: unknown) => notify((e as Error).message, "error");
+  const save = useMutation({
+    mutationFn: () => {
+      const body = { name, memberUserIds: members.map((m) => m.id) };
+      return editing === "new" ? api.createProject(body) : api.updateProject((editing as Project).id, body);
+    },
+    onSuccess: () => done("Project saved"),
+    onError: fail,
+  });
+  const remove = useMutation({
+    mutationFn: (id: number) => api.deleteProject(id),
+    onSuccess: () => done("Project deleted"),
+    onError: fail,
+  });
+
+  return (
+    <Stack spacing={2}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => open("new")}>
+          Add project
+        </Button>
+      </Box>
+      <TableContainer component={Paper} variant="outlined">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Project</TableCell>
+              <TableCell>Members</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {projects.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell>{p.name}</TableCell>
+                <TableCell>
+                  {p.memberUserIds.length === 0
+                    ? "—"
+                    : people
+                        .filter((u) => p.memberUserIds.includes(u.id))
+                        .map((u) => u.name)
+                        .join(", ")}
+                </TableCell>
+                <TableCell align="right">
+                  <Button size="small" onClick={() => open(p)}>
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => window.confirm(`Delete project "${p.name}"?`) && remove.mutate(p.id)}
+                  >
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{editing === "new" ? "Add project" : "Edit project"}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Project name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Autocomplete
+              multiple
+              options={people}
+              value={members}
+              getOptionLabel={(u) => `${u.name} (${u.email})`}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              onChange={(_, v) => setMembers(v)}
+              renderInput={(params) => <TextField {...params} label="Members" />}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditing(null)}>Cancel</Button>
+          <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   );
 }
 
@@ -549,7 +707,6 @@ function SettingsTab() {
   const [maxDuration, setMaxDuration] = useState(240);
   const [maxDaysAhead, setMaxDaysAhead] = useState(30);
   const [checkInGrace, setCheckInGrace] = useState(15);
-  const [projectsStr, setProjectsStr] = useState("");
 
   useEffect(() => {
     if (rules) {
@@ -560,7 +717,6 @@ function SettingsTab() {
       setMaxDuration(rules.maxDurationMinutes);
       setMaxDaysAhead(rules.maxDaysAhead);
       setCheckInGrace(rules.checkInGraceMinutes);
-      setProjectsStr(rules.projects.join(", "));
     }
   }, [rules]);
 
@@ -586,10 +742,7 @@ function SettingsTab() {
       checkInOpensMinutesBefore: rules.checkInOpensMinutesBefore,
       autoReleaseEnabled: rules.autoReleaseEnabled,
       checkInGraceMinutes: Number(checkInGrace),
-      projects: projectsStr
-        .split(",")
-        .map((p) => p.trim())
-        .filter(Boolean),
+      projects: rules.projects,
     };
     update.mutate(req);
   };
@@ -658,14 +811,7 @@ function SettingsTab() {
               fullWidth
             />
           </Stack>
-          <TextField
-            label="Allowed Projects (comma-separated)"
-            multiline
-            rows={2}
-            value={projectsStr}
-            onChange={(e) => setProjectsStr(e.target.value)}
-            helperText="Users select from these projects when scheduling a meeting."
-          />
+          <Alert severity="info">Projects and their members are managed in the Projects tab.</Alert>
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button
               variant="contained"

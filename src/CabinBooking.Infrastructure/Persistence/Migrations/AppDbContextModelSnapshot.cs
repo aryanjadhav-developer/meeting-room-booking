@@ -217,6 +217,42 @@ namespace CabinBooking.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CabinBooking.Domain.Entities.Project", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Projects", (string)null);
+                });
+
+            modelBuilder.Entity("CabinBooking.Domain.Entities.ProjectMember", b =>
+                {
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ProjectId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ProjectMembers", (string)null);
+                });
+
             modelBuilder.Entity("CabinBooking.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -317,9 +353,33 @@ namespace CabinBooking.Infrastructure.Persistence.Migrations
                     b.Navigation("Cabin");
                 });
 
+            modelBuilder.Entity("CabinBooking.Domain.Entities.ProjectMember", b =>
+                {
+                    b.HasOne("CabinBooking.Domain.Entities.Project", "Project")
+                        .WithMany("Members")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CabinBooking.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CabinBooking.Domain.Entities.Cabin", b =>
                 {
                     b.Navigation("Bookings");
+                });
+
+            modelBuilder.Entity("CabinBooking.Domain.Entities.Project", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("CabinBooking.Domain.Entities.User", b =>

@@ -200,6 +200,8 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     await DemoSeeder.SeedDemoAsync(scope.ServiceProvider);
     var settingsService = scope.ServiceProvider.GetRequiredService<SettingsService>();
     await settingsService.InitializeFromDatabaseAsync();
+    await scope.ServiceProvider.GetRequiredService<ProjectService>()
+        .SeedAsync(scope.ServiceProvider.GetRequiredService<BookingRuleValidator>().ToDto().Projects, CancellationToken.None);
 }
 
 // ---------- Pipeline ----------

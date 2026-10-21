@@ -6,6 +6,8 @@ import type {
   Cabin,
   CabinStatus,
   UpsertCabin,
+  DirectoryUser,
+  Project,
   User,
   UserRole,
   UtilizationReport,
@@ -177,6 +179,15 @@ export const api = {
 
   // admin
   users: () => request<User[]>("GET", "/api/users"),
+  createUser: (body: { name: string; email: string; password: string; role: UserRole }) =>
+    request<User>("POST", "/api/users", body),
+  directory: () => request<DirectoryUser[]>("GET", "/api/directory"),
+  projects: () => request<Project[]>("GET", "/api/projects"),
+  createProject: (body: { name: string; memberUserIds: string[] }) =>
+    request<Project>("POST", "/api/projects", body),
+  updateProject: (id: number, body: { name: string; memberUserIds: string[] }) =>
+    request<Project>("PUT", `/api/projects/${id}`, body),
+  deleteProject: (id: number) => request<void>("DELETE", `/api/projects/${id}`),
   updateUser: (id: string, role: UserRole, isActive: boolean) =>
     request<User>("PUT", `/api/users/${id}`, { role, isActive }),
   utilization: (from: string, to: string) =>

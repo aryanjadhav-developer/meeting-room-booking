@@ -13,6 +13,18 @@ export interface User {
   isActive: boolean;
 }
 
+export interface DirectoryUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  memberUserIds: string[];
+}
+
 export interface AuthResponse {
   token: string;
   expiresAt: string;

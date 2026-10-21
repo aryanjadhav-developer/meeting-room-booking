@@ -11,6 +11,8 @@ public interface IAppDbContext
     DbSet<Booking> Bookings { get; }
     DbSet<AuditEntry> AuditEntries { get; }
     DbSet<SystemSetting> Settings { get; }
+    DbSet<Project> Projects { get; }
+    DbSet<ProjectMember> ProjectMembers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -14,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import { PURPOSES, type Booking, type BookingPurpose } from "../api/types";
 import { useBookingMutation, useBookingsForDay, useCabins, useRules } from "../hooks/queries";
 import { capacityText } from "../utils/format";
@@ -62,11 +65,23 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
   const [purposeDetail, setPurposeDetail] = useState("");
   const [notes, setNotes] = useState("");
   const [attendeeEmails, setAttendeeEmails] = useState<string[]>([]);
-  const [attendeeInput, setAttendeeInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
 
-  const projects = rules?.projects ?? [];
+  const { user: me } = useAuth();
+  const { data: projectList = [] } = useQuery({ queryKey: ["projects"], queryFn: api.projects });
+  const { data: directory = [] } = useQuery({ queryKey: ["directory"], queryFn: api.directory });
+  const projects = projectList.length ? projectList.map((p) => p.name) : (rules?.projects ?? []);
+
+  const pickProject = (value: string) => {
+    setProject(value);
+    const p = projectList.find((x) => x.name === value);
+    if (!p) return;
+    const emails = directory
+      .filter((u) => p.memberUserIds.includes(u.id) && u.email.toLowerCase() !== me?.email.toLowerCase())
+      .map((u) => u.email);
+    setAttendeeEmails(emails);
+  };
 
   // Reset the form each time the dialog opens.
   useEffect(() => {
@@ -95,7 +110,6 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       setPurposeDetail("");
       setNotes("");
       setAttendeeEmails([]);
-      setAttendeeInput("");
     }
   }, [open, editing, draft, cabins, rules]);
 
@@ -304,7 +318,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
             label="Project"
             value={project}
             required
-            onChange={(e) => setProject(e.target.value)}
+            onChange={(e) => pickProject(e.target.value)}
             error={err("project")}
             helperText={err("project") ? "Please choose a project" : undefined}
           >
@@ -365,45 +379,27 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
             slotProps={{ htmlInput: { maxLength: 1000 } }}
           />
 
-          <Box>
-            <TextField
-              label="Invite attendees (optional)"
-              value={attendeeInput}
-              fullWidth
-              placeholder="email@example.com — press Enter or comma to add"
-              onChange={(e) => setAttendeeInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === ",") {
-                  e.preventDefault();
-                  const email = attendeeInput.trim().replace(/,$/, "");
-                  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !attendeeEmails.includes(email)) {
-                    setAttendeeEmails((prev) => [...prev, email]);
-                  }
-                  setAttendeeInput("");
-                }
-              }}
-              onBlur={() => {
-                const email = attendeeInput.trim();
-                if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !attendeeEmails.includes(email)) {
-                  setAttendeeEmails((prev) => [...prev, email]);
-                  setAttendeeInput("");
-                }
-              }}
-              helperText="Each attendee gets a booking confirmation email with a calendar invite"
-            />
-            {attendeeEmails.length > 0 && (
-              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1 }}>
-                {attendeeEmails.map((email) => (
-                  <Chip
-                    key={email}
-                    label={email}
-                    size="small"
-                    onDelete={() => setAttendeeEmails((prev) => prev.filter((e) => e !== email))}
-                  />
-                ))}
-              </Stack>
+          <Autocomplete
+            multiple
+            freeSolo
+            options={directory.map((u) => u.email)}
+            value={attendeeEmails}
+            getOptionLabel={(email) => {
+              const u = directory.find((d) => d.email === email);
+              return u ? `${u.name} (${email})` : email;
+            }}
+            onChange={(_, v) => {
+              const valid = v.filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+              setAttendeeEmails([...new Set(valid)]);
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Attendees (optional)"
+                helperText="Project members are added automatically. Pick anyone from the employee list or type an e-mail. Each gets a confirmation with a calendar invite."
+              />
             )}
-          </Box>
+          />
 
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>

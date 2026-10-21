@@ -11,6 +11,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<SystemSetting> Settings => Set<SystemSetting>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -60,6 +62,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Key);
             e.Property(x => x.Key).HasMaxLength(100);
             e.Property(x => x.Value).IsRequired();
+        });
+
+        modelBuilder.Entity<Project>(e =>
+        {
+            e.ToTable("Projects");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ProjectMember>(e =>
+        {
+            e.ToTable("ProjectMembers");
+            e.HasKey(x => new { x.ProjectId, x.UserId });
+            e.HasOne(x => x.Project).WithMany(p => p.Members).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Cabin>(e =>
