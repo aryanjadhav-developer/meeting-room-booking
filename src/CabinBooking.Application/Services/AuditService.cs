@@ -11,12 +11,12 @@ public class AuditService(IAppDbContext db)
         take = Math.Clamp(take, 1, 200);
         skip = Math.Max(0, skip);
 
-        return await db.AuditEntries
-            .AsNoTracking()
+        var entries = await db.AuditEntries.AsNoTracking().ToListAsync(ct);
+        return entries
             .OrderByDescending(a => a.Timestamp)
             .Skip(skip)
             .Take(take)
             .Select(a => new AuditEntryDto(a.Id, a.UserId, a.UserName, a.Action, a.EntityType, a.EntityId, a.Details, a.Timestamp))
-            .ToListAsync(ct);
+            .ToList();
     }
 }
