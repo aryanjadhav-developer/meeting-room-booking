@@ -1,8 +1,9 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using CabinBooking.Application.Abstractions;
-using MailKit.Net.Smtp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using MimeKit;
 
 namespace CabinBooking.Infrastructure.Email;
 
@@ -18,6 +19,7 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
 {
     private static readonly List<SentEmail> RecentEmails = new();
     private static readonly object SyncRoot = new();
+    private static readonly HttpClient Http = new();
 
     public Task SendEmailAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default) =>
         SendEmailInternalAsync(toEmail, subject, body, null, null, null, cancellationToken);
@@ -48,46 +50,44 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
             if (RecentEmails.Count > 50) RecentEmails.RemoveAt(RecentEmails.Count - 1);
         }
 
-        var smtpHost = configuration["Email:SmtpHost"];
-        if (string.IsNullOrWhiteSpace(smtpHost))
+        var resendApiKey = configuration["Resend:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(resendApiKey))
         {
-            logger.LogInformation("No SMTP server configured. Email to {To} previewed in-memory: {Subject}", toEmail, subject);
+            await SendViaResendAsync(resendApiKey, toEmail, subject, body, cancellationToken);
             return;
         }
 
-        var smtpPort = int.TryParse(configuration["Email:SmtpPort"], out var p) ? p : 1025;
-        var fromAddress = configuration["Email:From"] ?? "noreply@meetingrooms.local";
+        logger.LogInformation("No email provider configured. Email to {To} previewed in-memory: {Subject}", toEmail, subject);
+    }
 
+    private async Task SendViaResendAsync(string apiKey, string toEmail, string subject, string body, CancellationToken cancellationToken)
+    {
+        var fromAddress = configuration["Email:From"] ?? "onboarding@resend.dev";
         try
         {
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Meeting Room Booking", fromAddress));
-            message.To.Add(new MailboxAddress(toEmail, toEmail));
-            message.Subject = subject;
-
-            var bodyBuilder = new BodyBuilder { HtmlBody = body };
-            if (!string.IsNullOrEmpty(attachmentContent) && !string.IsNullOrEmpty(attachmentFileName))
+            var payload = JsonSerializer.Serialize(new
             {
-                var mediaType = ContentType.Parse(contentType ?? "application/octet-stream");
-                bodyBuilder.Attachments.Add(attachmentFileName, System.Text.Encoding.UTF8.GetBytes(attachmentContent), mediaType);
-            }
-            message.Body = bodyBuilder.ToMessageBody();
+                from = $"Meeting Room Booking <{fromAddress}>",
+                to = new[] { toEmail },
+                subject,
+                html = body
+            });
 
-            var smtpUser = configuration["Email:SmtpUser"] ?? fromAddress;
-            var smtpPassword = configuration["Email:SmtpPassword"];
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
-            using var client = new SmtpClient();
-            await client.ConnectAsync(smtpHost, smtpPort, MailKit.Security.SecureSocketOptions.Auto, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(smtpPassword))
-                await client.AuthenticateAsync(smtpUser, smtpPassword, cancellationToken);
-            await client.SendAsync(message, cancellationToken);
-            await client.DisconnectAsync(true, cancellationToken);
+            using var response = await Http.SendAsync(request, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            logger.LogInformation("Sent email to {To} via {Host}:{Port}", toEmail, smtpHost, smtpPort);
+            if (response.IsSuccessStatusCode)
+                logger.LogInformation("Sent email to {To} via Resend", toEmail);
+            else
+                logger.LogWarning("Failed to send email to {To} via Resend: {Status} {Body}", toEmail, (int)response.StatusCode, responseBody);
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Failed to send email to {To} via SMTP: {Error}", toEmail, ex.ToString());
+            logger.LogWarning("Failed to send email to {To} via Resend: {Error}", toEmail, ex.ToString());
         }
     }
 
