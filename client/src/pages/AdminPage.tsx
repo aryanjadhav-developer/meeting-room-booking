@@ -34,7 +34,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../api/client";
-import type { Cabin, DirectoryUser, Project, UpsertCabin, UserRole, UpdateSettingsRequest } from "../api/types";
+import type { Cabin, Project, UpsertCabin, User, UserRole, UpdateSettingsRequest } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useNotify } from "../components/Notifier";
 import { useCabins } from "../hooks/queries";
@@ -526,10 +526,10 @@ function ProjectsTab() {
   const qc = useQueryClient();
   const notify = useNotify();
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: api.projects });
-  const { data: people = [] } = useQuery({ queryKey: ["directory"], queryFn: api.directory });
+  const { data: people = [] } = useQuery({ queryKey: ["users"], queryFn: api.users });
   const [editing, setEditing] = useState<Project | "new" | null>(null);
   const [name, setName] = useState("");
-  const [members, setMembers] = useState<DirectoryUser[]>([]);
+  const [members, setMembers] = useState<User[]>([]);
 
   const open = (p: Project | "new") => {
     setEditing(p);

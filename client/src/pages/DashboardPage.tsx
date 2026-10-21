@@ -16,15 +16,13 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import GroupsIcon from "@mui/icons-material/Groups";
-import { api } from "../api/client";
 import type { Booking, CabinStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { BookingDetailsDialog } from "../components/BookingDetailsDialog";
 import { BookingDialog, type BookingDraft } from "../components/BookingDialog";
-import { useNotify } from "../components/Notifier";
-import { useBookingMutation, useCabinStatus, useNow } from "../hooks/queries";
+import { useCabinStatus, useNow } from "../hooks/queries";
 import { capacityText } from "../utils/format";
-import { fmtRange, fmtTime, minutesUntil } from "../utils/time";
+import { fmtRange, minutesUntil } from "../utils/time";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -74,7 +72,7 @@ export function DashboardPage() {
             status={s}
             busy={isBusy(s)}
             now={now}
-            onBook={() => setDraft({ cabinId: s.cabin.id })}
+            onBook={(d) => setDraft(d ?? { cabinId: s.cabin.id })}
             onOpen={setSelected}
           />
         ))}
@@ -105,28 +103,17 @@ interface CardProps {
   status: CabinStatus;
   busy: boolean;
   now: ReturnType<typeof useNow>;
-  onBook(): void;
+  onBook(draft?: BookingDraft): void;
   onOpen(b: Booking): void;
 }
 
 function CabinCard({ status, busy, now, onBook, onOpen }: CardProps) {
   const { cabin, current, next } = status;
-  const notify = useNotify();
-  const quick = useBookingMutation((minutes: number) => api.quickBook(cabin.id, minutes));
 
   const freeFor = next ? minutesUntil(next.startTime, now) : null;
   const progress = current
     ? Math.min(100, (now.diff(current.startTime, "minute", true) / current.durationMinutes) * 100)
     : 0;
-
-  const quickBook = async (minutes: number) => {
-    try {
-      const b = await quick.mutateAsync(minutes);
-      notify(`${cabin.name} is yours until ${fmtTime(b.endTime)}`);
-    } catch (e) {
-      notify((e as Error).message, "error");
-    }
-  };
 
   return (
     <Card sx={{ borderTop: `4px solid ${cabin.color}`, display: "flex", flexDirection: "column" }}>
@@ -209,17 +196,27 @@ function CabinCard({ status, busy, now, onBook, onOpen }: CardProps) {
 
       <CardActions sx={{ px: 2, pb: 2, gap: 1, flexWrap: "wrap" }}>
         {!busy && (freeFor === null || freeFor >= 15) && (
-          <ButtonGroup size="small" variant="contained" disabled={quick.isPending}>
+          <ButtonGroup size="small" variant="contained">
             {[15, 30, 60]
               .filter((m) => freeFor === null || m <= freeFor)
               .map((m) => (
-                <Button key={m} onClick={() => quickBook(m)}>
+                <Button
+                  key={m}
+                  onClick={() =>
+                    onBook({
+                      cabinId: cabin.id,
+                      date: now.format("YYYY-MM-DD"),
+                      start: now.format("HH:mm"),
+                      duration: m,
+                    })
+                  }
+                >
                   Now · {m}m
                 </Button>
               ))}
           </ButtonGroup>
         )}
-        <Button size="small" onClick={onBook}>
+        <Button size="small" onClick={() => onBook()}>
           Book later
         </Button>
       </CardActions>

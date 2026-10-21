@@ -38,6 +38,7 @@ export interface BookingDraft {
   cabinId?: number;
   date?: string; // YYYY-MM-DD (office date)
   start?: string; // HH:mm
+  duration?: number; // minutes
 }
 
 interface Props {
@@ -103,7 +104,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       setCabinId(draft?.cabinId ?? cabins[0]?.id ?? "");
       setDate(draft?.date ?? todayStr());
       setStart(draft?.start ?? "");
-      setDuration(30);
+      setDuration(draft?.duration ?? 30);
       setProject("");
       setCustomProject("");
       setPurpose("");
