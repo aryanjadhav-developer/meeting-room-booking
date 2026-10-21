@@ -38,6 +38,8 @@ public class AppExceptionHandler(IProblemDetailsService problemDetails, ILogger<
                     AppException => exception.Message,
                     DbUpdateConcurrencyException => "Please reload and try again.",
                     TimeoutException => exception.Message,
+                    _ when status == StatusCodes.Status500InternalServerError =>
+                        $"[DEBUG] {exception.GetType().Name}: {exception.Message}",
                     _ => null
                 }
             }
