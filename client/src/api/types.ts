@@ -130,6 +130,55 @@ export interface UtilizationReport {
   }[];
 }
 
+// 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+export interface RecurringBooking {
+  id: string;
+  cabinId: number;
+  cabinName: string;
+  title: string;
+  purpose: BookingPurpose;
+  purposeDetail: string | null;
+  notes: string | null;
+  startDate: string;   // YYYY-MM-DD
+  endDate: string;     // YYYY-MM-DD
+  startMinuteOfDay: number;  // minutes since midnight in office TZ
+  durationMinutes: number;
+  daysOfWeek: number[];      // DayOfWeek ints
+  attendeeEmails: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateRecurringBookingRequest {
+  cabinId: number;
+  title: string;
+  purpose: BookingPurpose;
+  purposeDetail: string | null;
+  notes: string | null;
+  startDate: string;
+  endDate: string;
+  startMinuteOfDay: number;
+  durationMinutes: number;
+  daysOfWeek: number[];
+  attendeeEmails: string[];
+}
+
+export interface UpdateRecurringBookingRequest {
+  cabinId: number;
+  title: string;
+  purpose: BookingPurpose;
+  purposeDetail: string | null;
+  notes: string | null;
+  endDate: string;
+  startMinuteOfDay: number;
+  durationMinutes: number;
+  daysOfWeek: number[];
+  attendeeEmails: string[];
+  isActive: boolean;
+}
+
 export interface AuditEntry {
   id: string;
   userId: string | null;

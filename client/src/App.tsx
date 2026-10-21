@@ -10,6 +10,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MyBookingsPage } from "./pages/MyBookingsPage";
+import { RecurringPage } from "./pages/RecurringPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { TimelinePage } from "./pages/TimelinePage";
 
@@ -61,6 +62,7 @@ function SignedInApp() {
           <Route index element={<DashboardPage />} />
           <Route path="timeline" element={<TimelinePage />} />
           <Route path="mine" element={<MyBookingsPage />} />
+          <Route path="recurring" element={<RecurringPage />} />
           {isAdmin && <Route path="admin" element={<AdminPage />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

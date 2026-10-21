@@ -71,6 +71,8 @@ builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddSingleton<IBookingNotifier, SignalRBookingNotifier>();
 builder.Services.AddHostedService<NoShowReleaseService>();
 builder.Services.AddHostedService<EmailBackgroundDispatcher>();
+builder.Services.AddHostedService<RecurringBookingScheduler>();
+builder.Services.AddHostedService<ReminderService>();
 
 // ---------- Auth ----------
 builder.Services

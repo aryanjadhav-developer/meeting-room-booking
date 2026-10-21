@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<UserService>();
         services.AddScoped<ProjectService>();
+        services.AddScoped<RecurringBookingService>();
         services.AddScoped<ReportService>();
         services.AddScoped<AuditService>();
         services.AddScoped<SettingsService>();

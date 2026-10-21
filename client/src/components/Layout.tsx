@@ -23,6 +23,7 @@ const LINKS = [
   { to: "/", label: "Live board" },
   { to: "/timeline", label: "Timeline" },
   { to: "/mine", label: "My bookings" },
+  { to: "/recurring", label: "Recurring" },
 ];
 
 const STATUS: Record<HubStatus, { label: string; color: "success" | "warning" | "default" }> = {

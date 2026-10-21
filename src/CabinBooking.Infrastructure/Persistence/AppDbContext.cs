@@ -13,6 +13,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SystemSetting> Settings => Set<SystemSetting>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<RecurringBooking> RecurringBookings => Set<RecurringBooking>();
+    public DbSet<RecurringBookingInstance> RecurringBookingInstances => Set<RecurringBookingInstance>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -121,6 +123,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // Serves the overlap check (cabin + time range) and the timeline queries.
             e.HasIndex(x => new { x.CabinId, x.Status, x.StartTime, x.EndTime });
             e.HasIndex(x => new { x.BookedByUserId, x.StartTime });
+        });
+
+        modelBuilder.Entity<RecurringBooking>(e =>
+        {
+            e.ToTable("RecurringBookings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.PurposeDetail).HasMaxLength(100);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.DaysOfWeekJson).HasMaxLength(100).IsRequired();
+            e.Property(x => x.AttendeeEmailsJson).HasMaxLength(2000);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Cabin).WithMany().HasForeignKey(x => x.CabinId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.UserId, x.IsActive });
+        });
+
+        modelBuilder.Entity<RecurringBookingInstance>(e =>
+        {
+            e.ToTable("RecurringBookingInstances");
+            e.HasKey(x => new { x.RecurringBookingId, x.Date });
+            e.HasOne(x => x.RecurringBooking).WithMany(r => r.Instances).HasForeignKey(x => x.RecurringBookingId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

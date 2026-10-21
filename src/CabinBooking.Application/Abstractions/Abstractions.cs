@@ -13,6 +13,8 @@ public interface IAppDbContext
     DbSet<SystemSetting> Settings { get; }
     DbSet<Project> Projects { get; }
     DbSet<ProjectMember> ProjectMembers { get; }
+    DbSet<RecurringBooking> RecurringBookings { get; }
+    DbSet<RecurringBookingInstance> RecurringBookingInstances { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

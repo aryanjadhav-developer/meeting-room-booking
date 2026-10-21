@@ -103,6 +103,9 @@ namespace CabinBooking.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTimeOffset?>("ReminderSentAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -253,6 +256,88 @@ namespace CabinBooking.Infrastructure.Persistence.Migrations
                     b.ToTable("ProjectMembers", (string)null);
                 });
 
+            modelBuilder.Entity("CabinBooking.Domain.Entities.RecurringBooking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AttendeeEmailsJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("CabinId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DaysOfWeekJson")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PurposeDetail")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("StartMinuteOfDay")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CabinId");
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("RecurringBookings", (string)null);
+                });
+
+            modelBuilder.Entity("CabinBooking.Domain.Entities.RecurringBookingInstance", b =>
+                {
+                    b.Property<Guid>("RecurringBookingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RecurringBookingId", "Date");
+
+                    b.ToTable("RecurringBookingInstances", (string)null);
+                });
+
             modelBuilder.Entity("CabinBooking.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -372,6 +457,36 @@ namespace CabinBooking.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CabinBooking.Domain.Entities.RecurringBooking", b =>
+                {
+                    b.HasOne("CabinBooking.Domain.Entities.Cabin", "Cabin")
+                        .WithMany()
+                        .HasForeignKey("CabinId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CabinBooking.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cabin");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CabinBooking.Domain.Entities.RecurringBookingInstance", b =>
+                {
+                    b.HasOne("CabinBooking.Domain.Entities.RecurringBooking", "RecurringBooking")
+                        .WithMany("Instances")
+                        .HasForeignKey("RecurringBookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecurringBooking");
+                });
+
             modelBuilder.Entity("CabinBooking.Domain.Entities.Cabin", b =>
                 {
                     b.Navigation("Bookings");
@@ -380,6 +495,11 @@ namespace CabinBooking.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("CabinBooking.Domain.Entities.Project", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("CabinBooking.Domain.Entities.RecurringBooking", b =>
+                {
+                    b.Navigation("Instances");
                 });
 
             modelBuilder.Entity("CabinBooking.Domain.Entities.User", b =>

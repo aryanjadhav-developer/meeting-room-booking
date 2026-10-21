@@ -30,6 +30,7 @@ public class Booking
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? CancelledAt { get; set; }
+    public DateTimeOffset? ReminderSentAt { get; set; }
 
     public byte[] RowVersion { get; set; } = [];
 

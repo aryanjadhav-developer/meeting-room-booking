@@ -8,6 +8,9 @@ import type {
   UpsertCabin,
   DirectoryUser,
   Project,
+  RecurringBooking,
+  CreateRecurringBookingRequest,
+  UpdateRecurringBookingRequest,
   User,
   UserRole,
   UtilizationReport,
@@ -196,6 +199,12 @@ export const api = {
     request<BookingRules>("PUT", "/api/config/rules", rules),
   auditLog: (take = 50, skip = 0) =>
     request<AuditEntry[]>("GET", `/api/audit?${qs({ take, skip })}`),
+
+  // recurring bookings
+  recurringBookings: () => request<RecurringBooking[]>("GET", "/api/recurring-bookings"),
+  createRecurringBooking: (b: CreateRecurringBookingRequest) => request<RecurringBooking>("POST", "/api/recurring-bookings", b),
+  updateRecurringBooking: (id: string, b: UpdateRecurringBookingRequest) => request<RecurringBooking>("PUT", `/api/recurring-bookings/${id}`, b),
+  deleteRecurringBooking: (id: string) => request<void>("DELETE", `/api/recurring-bookings/${id}`),
 
   // downloads
   downloadBookingsCsv: (from?: string, to?: string, cabinId?: number) =>
