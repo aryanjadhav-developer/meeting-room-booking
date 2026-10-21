@@ -69,6 +69,10 @@ public class RecurringBookingService(
         await audit.LogAsync("RecurringCreated", "RecurringBooking", rb.Id.ToString(),
             $"Created recurring '{rb.Title}' on {req.DaysOfWeek} in {cabin.Name}", ct);
 
+        // Immediately create bookings for the upcoming window so they appear on the
+        // timeline right away rather than waiting up to 24h for the scheduler run.
+        await ScheduleDueAsync(7, ct);
+
         return await LoadDtoAsync(rb.Id, ct);
     }
 
