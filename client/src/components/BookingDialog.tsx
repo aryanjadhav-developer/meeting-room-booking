@@ -68,6 +68,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
   const [attendeeEmails, setAttendeeEmails] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
+  const [lockedStart, setLockedStart] = useState(false); // true when opened via quick-book
 
   const { user: me } = useAuth();
   const { data: projectList = [] } = useQuery({ queryKey: ["projects"], queryFn: api.projects });
@@ -105,6 +106,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       setDate(draft?.date ?? todayStr());
       setStart(draft?.start ?? "");
       setDuration(draft?.duration ?? 30);
+      setLockedStart(!!draft?.start);
       setProject("");
       setCustomProject("");
       setPurpose("");
@@ -143,7 +145,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
 
   // Derived rather than synced via effects: if the chosen start/duration doesn't fit the selected
   // day (past time, too close to closing), fall back to the nearest valid option.
-  const effStart = startOptions.includes(start) ? start : (startOptions[0] ?? "");
+  const effStart = lockedStart ? start : (startOptions.includes(start) ? start : (startOptions[0] ?? ""));
 
   const durationOptions = useMemo(() => {
     if (!rules || !effStart) return [];
@@ -252,21 +254,31 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
                 htmlInput: { min: todayStr(), max: maxDate },
               }}
             />
-            <TextField
-              select
-              label="Start"
-              value={effStart}
-              fullWidth
-              onChange={(e) => setStart(e.target.value)}
-              disabled={!startOptions.length}
-              helperText={!startOptions.length ? "No times left on this day" : " "}
-            >
-              {startOptions.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
-                </MenuItem>
-              ))}
-            </TextField>
+            {lockedStart ? (
+              <TextField
+                label="Start"
+                value={effStart}
+                fullWidth
+                disabled
+                helperText="Set to now"
+              />
+            ) : (
+              <TextField
+                select
+                label="Start"
+                value={effStart}
+                fullWidth
+                onChange={(e) => setStart(e.target.value)}
+                disabled={!startOptions.length}
+                helperText={!startOptions.length ? "No times left on this day" : " "}
+              >
+                {startOptions.map((s) => (
+                  <MenuItem key={s} value={s}>
+                    {s}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
           </Stack>
 
           <Box>
