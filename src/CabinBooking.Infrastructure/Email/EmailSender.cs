@@ -77,7 +77,7 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
             var smtpPassword = configuration["Email:SmtpPassword"];
 
             using var client = new SmtpClient();
-            await client.ConnectAsync(smtpHost, smtpPort, MailKit.Security.SecureSocketOptions.StartTls, cancellationToken);
+            await client.ConnectAsync(smtpHost, smtpPort, MailKit.Security.SecureSocketOptions.Auto, cancellationToken);
             if (!string.IsNullOrWhiteSpace(smtpPassword))
                 await client.AuthenticateAsync(smtpUser, smtpPassword, cancellationToken);
             await client.SendAsync(message, cancellationToken);

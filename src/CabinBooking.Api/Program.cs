@@ -151,6 +151,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (allowedOrigins.Length == 0)
+    allowedOrigins = ["https://meeting-room-booking-fjrr.onrender.com"];
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
