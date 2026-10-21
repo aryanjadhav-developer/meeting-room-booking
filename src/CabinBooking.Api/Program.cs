@@ -193,6 +193,53 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     if (db.Database.IsSqlite())
     {
         await db.Database.EnsureCreatedAsync();
+        // EnsureCreatedAsync only creates the DB if it does not exist at all; it never
+        // adds tables that were introduced in later versions. Run explicit CREATE TABLE
+        // IF NOT EXISTS statements so new tables are created on existing databases too.
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "RecurringBookings" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_RecurringBookings" PRIMARY KEY,
+                "UserId" TEXT NOT NULL,
+                "CabinId" INTEGER NOT NULL,
+                "Title" TEXT NOT NULL,
+                "Purpose" TEXT NOT NULL,
+                "PurposeDetail" TEXT NULL,
+                "Notes" TEXT NULL,
+                "StartDate" TEXT NOT NULL,
+                "EndDate" TEXT NOT NULL,
+                "StartMinuteOfDay" INTEGER NOT NULL,
+                "DurationMinutes" INTEGER NOT NULL,
+                "DaysOfWeekJson" TEXT NOT NULL,
+                "AttendeeEmailsJson" TEXT NULL,
+                "IsActive" INTEGER NOT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                CONSTRAINT "FK_RecurringBookings_Cabins_CabinId"
+                    FOREIGN KEY ("CabinId") REFERENCES "Cabins" ("Id") ON DELETE RESTRICT,
+                CONSTRAINT "FK_RecurringBookings_Users_UserId"
+                    FOREIGN KEY ("UserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+            );
+            CREATE INDEX IF NOT EXISTS "IX_RecurringBookings_CabinId"
+                ON "RecurringBookings" ("CabinId");
+            CREATE INDEX IF NOT EXISTS "IX_RecurringBookings_UserId_IsActive"
+                ON "RecurringBookings" ("UserId", "IsActive");
+
+            CREATE TABLE IF NOT EXISTS "RecurringBookingInstances" (
+                "RecurringBookingId" TEXT NOT NULL,
+                "Date" TEXT NOT NULL,
+                "BookingId" TEXT NULL,
+                CONSTRAINT "PK_RecurringBookingInstances"
+                    PRIMARY KEY ("RecurringBookingId", "Date"),
+                CONSTRAINT "FK_RecurringBookingInstances_RecurringBookings_RecurringBookingId"
+                    FOREIGN KEY ("RecurringBookingId") REFERENCES "RecurringBookings" ("Id") ON DELETE CASCADE
+            );
+            """);
+        // Add ReminderSentAt column to Bookings if it was not there yet.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                """ALTER TABLE "Bookings" ADD COLUMN "ReminderSentAt" TEXT NULL;""");
+        }
+        catch { /* column already exists — safe to ignore */ }
     }
     else
     {
