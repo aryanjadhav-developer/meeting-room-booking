@@ -32,6 +32,7 @@ import { useNotify } from "../components/Notifier";
 import { useCabins, useRules } from "../hooks/queries";
 import { office } from "../utils/time";
 
+const OTHER_PROJECT = "__other__";
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 function minutesToHHMM(minutes: number): string {
@@ -69,11 +70,14 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
   const { data: cabins = [] } = useCabins();
   const { data: rules } = useRules();
   const { data: directory = [] } = useQuery({ queryKey: ["directory"], queryFn: api.directory });
+  const { data: projectList = [] } = useQuery({ queryKey: ["projects"], queryFn: api.projects });
 
   const today = office().format("YYYY-MM-DD");
+  const projectNames = projectList.length ? projectList.map((p) => p.name) : (rules?.projects ?? []);
 
   const [cabinId, setCabinId] = useState<number | "">(cabins[0]?.id ?? "");
-  const [title, setTitle] = useState("");
+  const [project, setProject] = useState("");
+  const [customProject, setCustomProject] = useState("");
   const [purpose, setPurpose] = useState<BookingPurpose | "">("");
   const [purposeDetail, setPurposeDetail] = useState("");
   const [notes, setNotes] = useState("");
@@ -87,13 +91,22 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
   const [showErrors, setShowErrors] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const pickProject = (value: string) => {
+    setProject(value);
+    if (value !== OTHER_PROJECT) setCustomProject("");
+  };
+
+  const title = project === OTHER_PROJECT ? customProject.trim() : project;
+
   // Reset when dialog opens
   const reset = () => {
     setShowErrors(false);
     setError(null);
     if (editing) {
       setCabinId(editing.cabinId);
-      setTitle(editing.title);
+      const known = projectNames.includes(editing.title);
+      setProject(known ? editing.title : OTHER_PROJECT);
+      setCustomProject(known ? "" : editing.title);
       setPurpose(editing.purpose);
       setPurposeDetail(editing.purposeDetail ?? "");
       setNotes(editing.notes ?? "");
@@ -106,7 +119,8 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
       setIsActive(editing.isActive);
     } else {
       setCabinId(cabins[0]?.id ?? "");
-      setTitle("");
+      setProject("");
+      setCustomProject("");
       setPurpose("");
       setPurposeDetail("");
       setNotes("");
@@ -126,7 +140,8 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
 
   const missing = {
     cabin: !cabinId,
-    title: !title.trim() || title.trim().length < 2,
+    project: !project,
+    customProject: project === OTHER_PROJECT && !customProject.trim(),
     purpose: !purpose,
     purposeDetail: purpose === "Other" && !purposeDetail.trim(),
     days: days.length === 0,
@@ -189,14 +204,28 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
           </TextField>
 
           <TextField
-            label="Project / meeting name"
-            value={title}
+            select
+            label="Project"
+            value={project}
             required
-            onChange={(e) => setTitle(e.target.value)}
-            error={err("title")}
-            helperText={err("title") ? "At least 2 characters" : undefined}
-            slotProps={{ htmlInput: { maxLength: 120 } }}
-          />
+            onChange={(e) => pickProject(e.target.value)}
+            error={err("project")}
+            helperText={err("project") ? "Please choose a project" : undefined}
+          >
+            {projectNames.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+            <MenuItem value={OTHER_PROJECT}>Other / custom name</MenuItem>
+          </TextField>
+          {project === OTHER_PROJECT && (
+            <TextField
+              label="Meeting name"
+              value={customProject}
+              required
+              onChange={(e) => setCustomProject(e.target.value)}
+              error={err("customProject")}
+              helperText={err("customProject") ? "Enter the meeting name" : undefined}
+              slotProps={{ htmlInput: { maxLength: 120 } }}
+            />
+          )}
 
           <TextField
             select
