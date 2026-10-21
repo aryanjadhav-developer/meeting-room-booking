@@ -33,7 +33,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import SaveIcon from "@mui/icons-material/Save";
-import { api } from "../api/client";
+import { api, tokenStore } from "../api/client";
 import type { Cabin, Project, UpsertCabin, User, UserRole, UpdateSettingsRequest } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useNotify } from "../components/Notifier";
@@ -97,8 +97,18 @@ function ReportsTab() {
         <Button
           variant="outlined"
           startIcon={<DownloadIcon />}
-          href={api.downloadUtilizationCsv(from, to)}
-          download={`utilization_${from}_${to}.csv`}
+          onClick={async () => {
+            const url = api.downloadUtilizationCsv(from, to);
+            const token = tokenStore.get();
+            const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+            if (!res.ok) return;
+            const blob = await res.blob();
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `utilization_${from}_${to}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }}
         >
           Export CSV
         </Button>

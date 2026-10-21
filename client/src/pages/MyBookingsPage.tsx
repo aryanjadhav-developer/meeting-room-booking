@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
-import { api } from "../api/client";
+import { api, tokenStore } from "../api/client";
 import type { Booking } from "../api/types";
 import { BookingDetailsDialog } from "../components/BookingDetailsDialog";
 import { BookingDialog, type BookingDraft } from "../components/BookingDialog";
@@ -57,8 +57,18 @@ export function MyBookingsPage() {
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
-            href={api.downloadBookingsCsv()}
-            download="bookings.csv"
+            onClick={async () => {
+              const url = api.downloadBookingsCsv();
+              const token = tokenStore.get();
+              const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+              if (!res.ok) return;
+              const blob = await res.blob();
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "bookings.csv";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
           >
             Export CSV
           </Button>
