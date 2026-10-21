@@ -87,7 +87,7 @@ public class EmailSender(IConfiguration configuration, ILogger<EmailSender> logg
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to send email to {To} via SMTP. Stored in preview.", toEmail);
+            logger.LogWarning("Failed to send email to {To} via SMTP: {Error}", toEmail, ex.ToString());
         }
     }
 
