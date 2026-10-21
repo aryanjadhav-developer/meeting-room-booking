@@ -30,8 +30,8 @@ public class RecurringBookingService(
         if (!currentUser.IsAdmin)
             query = query.Where(r => r.UserId == currentUser.UserId);
 
-        var list = await query.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
-        return list.Select(ToDto).ToList();
+        var list = await query.ToListAsync(ct);
+        return list.OrderByDescending(r => r.CreatedAt).Select(ToDto).ToList();
     }
 
     // ---------------------------------------------------------------- commands
