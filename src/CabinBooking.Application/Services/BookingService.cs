@@ -84,7 +84,7 @@ public class BookingService(
 
     public Task<BookingDto> CreateAsync(CreateBookingRequest request, CancellationToken ct) =>
         CreateCoreAsync(request.CabinId, request.Title, request.Purpose, request.PurposeDetail, request.Notes,
-            Truncate(request.StartTime), Truncate(request.EndTime), ct);
+            Truncate(request.StartTime), Truncate(request.EndTime), request.AttendeeEmails, ct);
 
     /// <summary>Books a cabin starting right now (rounded down to the minute).</summary>
     public Task<BookingDto> QuickBookAsync(QuickBookRequest request, CancellationToken ct)
@@ -92,7 +92,7 @@ public class BookingService(
         var start = Truncate(rules.Now);
         var title = string.IsNullOrWhiteSpace(request.Title) ? "Quick meeting" : request.Title;
         return CreateCoreAsync(request.CabinId, title, BookingPurpose.Meeting, null, null,
-            start, start.AddMinutes(request.DurationMinutes), ct);
+            start, start.AddMinutes(request.DurationMinutes), null, ct);
     }
 
     public async Task<BookingDto> UpdateAsync(Guid id, UpdateBookingRequest request, CancellationToken ct)
@@ -130,7 +130,19 @@ public class BookingService(
         await notifier.BookingUpdatedAsync(dto);
         await audit.LogAsync("BookingUpdated", "Booking", id.ToString(), $"Updated booking '{dto.Title}' in {dto.CabinName}", ct);
         var ics = IcsCalendarBuilder.BuildIcs(dto.Id, dto.Title, dto.CabinName, "noreply@meetingrooms.local", dto.BookedByEmail, dto.StartTime, dto.EndTime, dto.Notes, "REQUEST");
-        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Updated: {dto.Title} ({dto.CabinName})", $"<p>Your booking for <strong>{dto.Title}</strong> in {dto.CabinName} was updated. New time: {rules.Format(dto.StartTime)} to {rules.Format(dto.EndTime)}.</p>", ics, $"meeting_{dto.Id:N}.ics"));
+        var updatedBody = $@"<div style=""font-family:sans-serif;max-width:600px"">
+  <h2 style=""color:#1976d2"">Booking Updated</h2>
+  <table style=""border-collapse:collapse;width:100%"">
+    <tr><td style=""padding:6px 12px;color:#555""><b>Meeting</b></td><td style=""padding:6px 12px"">{dto.Title}</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Room</b></td><td style=""padding:6px 12px"">{dto.CabinName}</td></tr>
+    <tr><td style=""padding:6px 12px;color:#555""><b>Booked by</b></td><td style=""padding:6px 12px"">{dto.BookedByName} ({dto.BookedByEmail})</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Date &amp; Time</b></td><td style=""padding:6px 12px"">{rules.Format(dto.StartTime)} – {rules.Format(dto.EndTime)}</td></tr>
+    <tr><td style=""padding:6px 12px;color:#555""><b>Duration</b></td><td style=""padding:6px 12px"">{dto.DurationMinutes} minutes</td></tr>
+    {(string.IsNullOrWhiteSpace(dto.Notes) ? "" : $"<tr style=\"background:#f5f5f5\"><td style=\"padding:6px 12px;color:#555\"><b>Notes</b></td><td style=\"padding:6px 12px\">{dto.Notes}</td></tr>")}
+  </table>
+  <p style=""color:#888;font-size:12px;margin-top:24px"">The calendar invite attached to this email has been updated.</p>
+</div>";
+        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Updated: {dto.Title} ({dto.CabinName})", updatedBody, ics, $"meeting_{dto.Id:N}.ics"));
         return dto;
     }
 
@@ -230,7 +242,17 @@ public class BookingService(
         await notifier.BookingCancelledAsync(dto);
         await audit.LogAsync("BookingCancelled", "Booking", id.ToString(), $"Cancelled booking '{booking.Title}'", ct);
         var ics = IcsCalendarBuilder.BuildIcs(dto.Id, dto.Title, dto.CabinName, "noreply@meetingrooms.local", dto.BookedByEmail, dto.StartTime, dto.EndTime, dto.Notes, "CANCEL");
-        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Cancelled: {dto.Title} ({dto.CabinName})", $"<p>Your booking for <strong>{dto.Title}</strong> in {dto.CabinName} has been cancelled.</p>", ics, $"cancel_{dto.Id:N}.ics"));
+        var cancelBody = $@"<div style=""font-family:sans-serif;max-width:600px"">
+  <h2 style=""color:#d32f2f"">Booking Cancelled</h2>
+  <table style=""border-collapse:collapse;width:100%"">
+    <tr><td style=""padding:6px 12px;color:#555""><b>Meeting</b></td><td style=""padding:6px 12px"">{dto.Title}</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Room</b></td><td style=""padding:6px 12px"">{dto.CabinName}</td></tr>
+    <tr><td style=""padding:6px 12px;color:#555""><b>Booked by</b></td><td style=""padding:6px 12px"">{dto.BookedByName} ({dto.BookedByEmail})</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Was scheduled</b></td><td style=""padding:6px 12px"">{rules.Format(dto.StartTime)} – {rules.Format(dto.EndTime)}</td></tr>
+  </table>
+  <p style=""color:#888;font-size:12px;margin-top:24px"">This meeting has been cancelled. The calendar invite attached removes it from your calendar.</p>
+</div>";
+        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Cancelled: {dto.Title} ({dto.CabinName})", cancelBody, ics, $"cancel_{dto.Id:N}.ics"));
     }
 
     /// <summary>Marks bookings that were never checked in as no-shows, freeing the cabin. Called by a background job.</summary>
@@ -262,7 +284,7 @@ public class BookingService(
     // ---------------------------------------------------------------- helpers
 
     private async Task<BookingDto> CreateCoreAsync(int cabinId, string title, BookingPurpose? requestedPurpose, string? requestedDetail,
-        string? notes, DateTimeOffset start, DateTimeOffset end, CancellationToken ct)
+        string? notes, DateTimeOffset start, DateTimeOffset end, List<string>? attendeeEmails, CancellationToken ct)
     {
         var (purpose, purposeDetail) = ValidateDetails(title, requestedPurpose, requestedDetail, notes);
         rules.ValidateNewWindow(start, end);
@@ -299,7 +321,15 @@ public class BookingService(
         await notifier.BookingCreatedAsync(dto);
         await audit.LogAsync("BookingCreated", "Booking", id.ToString(), $"Booked '{dto.Title}' in {dto.CabinName}", ct);
         var ics = IcsCalendarBuilder.BuildIcs(dto.Id, dto.Title, dto.CabinName, "noreply@meetingrooms.local", dto.BookedByEmail, dto.StartTime, dto.EndTime, dto.Notes, "REQUEST");
-        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, $"Booking Confirmed: {dto.Title} ({dto.CabinName})", $"<p>Your booking for <strong>{dto.Title}</strong> in {dto.CabinName} is confirmed from {rules.Format(dto.StartTime)} to {rules.Format(dto.EndTime)}.</p>", ics, $"meeting_{dto.Id:N}.ics"));
+        var confirmedSubject = $"Booking Confirmed: {dto.Title} ({dto.CabinName})";
+        var confirmedBody = BuildConfirmedBody(dto, attendeeEmails, isOrganizer: true);
+        await emailOutbox.QueueEmailAsync(new EmailNotification(dto.BookedByEmail, confirmedSubject, confirmedBody, ics, $"meeting_{dto.Id:N}.ics"));
+        if (attendeeEmails is { Count: > 0 })
+        {
+            var attendeeBody = BuildConfirmedBody(dto, attendeeEmails, isOrganizer: false);
+            foreach (var email in attendeeEmails.Where(e => !string.IsNullOrWhiteSpace(e) && !e.Equals(dto.BookedByEmail, StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase))
+                await emailOutbox.QueueEmailAsync(new EmailNotification(email, confirmedSubject, attendeeBody, ics, $"meeting_{dto.Id:N}.ics"));
+        }
         return dto;
     }
 
@@ -329,6 +359,29 @@ public class BookingService(
             .Count(b => b.Status == BookingStatus.Confirmed && b.StartTime >= dayStart && b.StartTime < dayEnd);
         if (count >= limit)
             throw new AppValidationException($"You can have at most {limit} bookings per day.");
+    }
+
+    private string BuildConfirmedBody(BookingDto dto, List<string>? attendeeEmails, bool isOrganizer)
+    {
+        var attendeeList = attendeeEmails is { Count: > 0 }
+            ? string.Join(", ", attendeeEmails)
+            : "—";
+        var role = isOrganizer ? "You have booked this room." : $"You have been invited to this meeting by <b>{dto.BookedByName}</b>.";
+        return $@"<div style=""font-family:sans-serif;max-width:600px"">
+  <h2 style=""color:#2e7d32"">Booking Confirmed</h2>
+  <p>{role}</p>
+  <table style=""border-collapse:collapse;width:100%"">
+    <tr><td style=""padding:6px 12px;color:#555""><b>Meeting</b></td><td style=""padding:6px 12px"">{dto.Title}</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Room</b></td><td style=""padding:6px 12px"">{dto.CabinName}</td></tr>
+    <tr><td style=""padding:6px 12px;color:#555""><b>Booked by</b></td><td style=""padding:6px 12px"">{dto.BookedByName} ({dto.BookedByEmail})</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Date &amp; Time</b></td><td style=""padding:6px 12px"">{rules.Format(dto.StartTime)} – {rules.Format(dto.EndTime)}</td></tr>
+    <tr><td style=""padding:6px 12px;color:#555""><b>Duration</b></td><td style=""padding:6px 12px"">{dto.DurationMinutes} minutes</td></tr>
+    <tr style=""background:#f5f5f5""><td style=""padding:6px 12px;color:#555""><b>Purpose</b></td><td style=""padding:6px 12px"">{dto.Purpose}{(string.IsNullOrWhiteSpace(dto.PurposeDetail) ? "" : $" – {dto.PurposeDetail}")}</td></tr>
+    <tr><td style=""padding:6px 12px;color:#555""><b>Attendees</b></td><td style=""padding:6px 12px"">{attendeeList}</td></tr>
+    {(string.IsNullOrWhiteSpace(dto.Notes) ? "" : $"<tr style=\"background:#f5f5f5\"><td style=\"padding:6px 12px;color:#555\"><b>Notes</b></td><td style=\"padding:6px 12px\">{dto.Notes}</td></tr>")}
+  </table>
+  <p style=""color:#888;font-size:12px;margin-top:24px"">A calendar invite is attached. Add it to your calendar to get a reminder.</p>
+</div>";
     }
 
     private async Task EnsureCabinBookableAsync(int cabinId, CancellationToken ct)

@@ -75,6 +75,7 @@ export interface BookingInput {
   notes: string | null;
   startTime: string;
   endTime: string;
+  attendeeEmails?: string[];
 }
 
 export interface BookingRules {

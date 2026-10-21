@@ -47,9 +47,9 @@ public record BookingDto(
     DateTimeOffset CreatedAt);
 
 /// <summary><paramref name="Title"/> is the project name. <paramref name="Purpose"/> is required (nullable only so a missing value can be reported).</summary>
-public record CreateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null);
+public record CreateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);
 
-public record UpdateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null);
+public record UpdateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);
 
 public record QuickBookRequest(int CabinId, int DurationMinutes, string? Title);
 

@@ -61,6 +61,8 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
   const [purpose, setPurpose] = useState<BookingPurpose | "">("");
   const [purposeDetail, setPurposeDetail] = useState("");
   const [notes, setNotes] = useState("");
+  const [attendeeEmails, setAttendeeEmails] = useState<string[]>([]);
+  const [attendeeInput, setAttendeeInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
 
@@ -92,6 +94,8 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       setPurpose("");
       setPurposeDetail("");
       setNotes("");
+      setAttendeeEmails([]);
+      setAttendeeInput("");
     }
   }, [open, editing, draft, cabins, rules]);
 
@@ -167,6 +171,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       notes: notes.trim() || null,
       startTime: startAt!.toISOString(),
       endTime: endAt!.toISOString(),
+      attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
     };
     return editing ? api.updateBooking(editing.id, input) : api.createBooking(input);
   });
@@ -359,6 +364,46 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
             minRows={2}
             slotProps={{ htmlInput: { maxLength: 1000 } }}
           />
+
+          <Box>
+            <TextField
+              label="Invite attendees (optional)"
+              value={attendeeInput}
+              fullWidth
+              placeholder="email@example.com — press Enter or comma to add"
+              onChange={(e) => setAttendeeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === ",") {
+                  e.preventDefault();
+                  const email = attendeeInput.trim().replace(/,$/, "");
+                  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !attendeeEmails.includes(email)) {
+                    setAttendeeEmails((prev) => [...prev, email]);
+                  }
+                  setAttendeeInput("");
+                }
+              }}
+              onBlur={() => {
+                const email = attendeeInput.trim();
+                if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !attendeeEmails.includes(email)) {
+                  setAttendeeEmails((prev) => [...prev, email]);
+                  setAttendeeInput("");
+                }
+              }}
+              helperText="Each attendee gets a booking confirmation email with a calendar invite"
+            />
+            {attendeeEmails.length > 0 && (
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1 }}>
+                {attendeeEmails.map((email) => (
+                  <Chip
+                    key={email}
+                    label={email}
+                    size="small"
+                    onDelete={() => setAttendeeEmails((prev) => prev.filter((e) => e !== email))}
+                  />
+                ))}
+              </Stack>
+            )}
+          </Box>
 
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
