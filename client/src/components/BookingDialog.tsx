@@ -180,15 +180,15 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
     );
   }, [dayBookings, cabinId, startAt, endAt, editing]);
 
-  const save = useBookingMutation(async () => {
+  const save = useBookingMutation(async ({ resolvedStart, resolvedEnd }: { resolvedStart: import("dayjs").Dayjs; resolvedEnd: import("dayjs").Dayjs }) => {
     const input = {
       cabinId: Number(cabinId),
       title,
       purpose: purpose as BookingPurpose,
       purposeDetail: purpose === "Other" ? purposeDetail.trim() : null,
       notes: notes.trim() || null,
-      startTime: startAt!.toISOString(),
-      endTime: endAt!.toISOString(),
+      startTime: resolvedStart.toISOString(),
+      endTime: resolvedEnd.toISOString(),
       attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
     };
     return editing ? api.updateBooking(editing.id, input) : api.createBooking(input);
@@ -200,8 +200,12 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       setShowErrors(true);
       return;
     }
+    // For quick-book (Now buttons), refresh start to the moment the user hits Book
+    // so time spent filling the form doesn't push start into the past.
+    const resolvedStart = lockedStart ? office() : startAt!;
+    const resolvedEnd = resolvedStart.add(effDuration, "minute");
     try {
-      const b = await save.mutateAsync(undefined);
+      const b = await save.mutateAsync({ resolvedStart, resolvedEnd });
       notify(`${b.cabinName} ${editing ? "updated" : "booked"} · ${fmtRange(b)}`);
       onClose();
     } catch (e) {
