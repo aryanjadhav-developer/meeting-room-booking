@@ -109,4 +109,12 @@ public class AuditController(AuditService audit) : ControllerBase
     [HttpGet]
     public Task<IReadOnlyList<AuditEntryDto>> Get([FromQuery] int take = 50, [FromQuery] int skip = 0, CancellationToken ct = default) =>
         audit.GetEntriesAsync(take, skip, ct);
+
+    /// <summary>Delete all audit log entries.</summary>
+    [HttpDelete]
+    public async Task<IActionResult> Clear(CancellationToken ct)
+    {
+        var deleted = await audit.ClearAsync(ct);
+        return Ok(new { deleted });
+    }
 }

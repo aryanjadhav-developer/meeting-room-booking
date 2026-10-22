@@ -203,6 +203,8 @@ export const api = {
     request<BookingRules>("PUT", "/api/config/rules", rules),
   auditLog: (take = 50, skip = 0) =>
     request<AuditEntry[]>("GET", `/api/audit?${qs({ take, skip })}`),
+  clearAuditLog: () => request<{ deleted: number }>("DELETE", "/api/audit"),
+  clearEmailLog: () => request<void>("DELETE", "/api/auth/preview-emails"),
 
   // recurring bookings
   recurringBookings: () => request<RecurringBooking[]>("GET", "/api/recurring-bookings"),

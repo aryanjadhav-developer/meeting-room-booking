@@ -960,67 +960,171 @@ function PurposesPanel() {
 // ------------------------------------------------------------------ audit
 
 function AuditTab() {
+  const qc = useQueryClient();
+  const notify = useNotify();
   const [take, setTake] = useState(50);
+  const [logTab, setLogTab] = useState<"audit" | "email">("audit");
+  const [confirmClear, setConfirmClear] = useState<"audit" | "email" | null>(null);
+
   const { data: entries, error, isLoading } = useQuery({
     queryKey: ["auditLog", take],
     queryFn: () => api.auditLog(take),
   });
+  const { data: emails = [], isLoading: emailsLoading } = useQuery({
+    queryKey: ["emailLog"],
+    queryFn: api.previewEmails,
+    enabled: logTab === "email",
+  });
+
+  const clearAudit = useMutation({
+    mutationFn: api.clearAuditLog,
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["auditLog"] });
+      notify(`Cleared ${res.deleted} audit entries`);
+      setConfirmClear(null);
+    },
+    onError: (e) => { notify((e as Error).message, "error"); setConfirmClear(null); },
+  });
+  const clearEmail = useMutation({
+    mutationFn: api.clearEmailLog,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["emailLog"] });
+      notify("Email log cleared");
+      setConfirmClear(null);
+    },
+    onError: (e) => { notify((e as Error).message, "error"); setConfirmClear(null); },
+  });
 
   return (
     <Stack spacing={2}>
-      {error && <Alert severity="error">{(error as Error).message}</Alert>}
-      {isLoading && <LinearProgress />}
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Time</TableCell>
-              <TableCell>User</TableCell>
-              <TableCell>Action</TableCell>
-              <TableCell>Entity</TableCell>
-              <TableCell>Details</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {entries?.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell sx={{ whiteSpace: "nowrap" }}>
-                  {new Date(e.timestamp).toLocaleString()}
-                </TableCell>
-                <TableCell>{e.userName}</TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={e.action}
-                    color={
-                      e.action.includes("Cancel")
-                        ? "error"
-                        : e.action.includes("Create")
-                        ? "success"
-                        : "primary"
-                    }
-                  />
-                </TableCell>
-                <TableCell>{e.entityType}</TableCell>
-                <TableCell>{e.details}</TableCell>
-              </TableRow>
-            ))}
-            {entries?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                  No audit entries recorded yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      {(entries?.length ?? 0) >= take && (
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <Button variant="outlined" onClick={() => setTake((t) => t + 50)}>
-            Load more
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+        <Tabs value={logTab} onChange={(_, v) => setLogTab(v)} sx={{ minHeight: 36 }}>
+          <Tab value="audit" label="Audit Log" sx={{ minHeight: 36, py: 0.5 }} />
+          <Tab value="email" label="Email Log" sx={{ minHeight: 36, py: 0.5 }} />
+        </Tabs>
+        <Button
+          size="small"
+          color="error"
+          variant="outlined"
+          onClick={() => setConfirmClear(logTab)}
+        >
+          Clear log
+        </Button>
+      </Stack>
+
+      {/* Confirm clear dialog */}
+      <Dialog open={!!confirmClear} onClose={() => setConfirmClear(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Clear {confirmClear === "audit" ? "audit" : "email"} log?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This permanently deletes all {confirmClear === "audit" ? "audit entries" : "email log entries"}. Cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmClear(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={clearAudit.isPending || clearEmail.isPending}
+            onClick={() => confirmClear === "audit" ? clearAudit.mutate() : clearEmail.mutate()}
+          >
+            Clear
           </Button>
-        </Box>
+        </DialogActions>
+      </Dialog>
+
+      {logTab === "audit" && (
+        <>
+          {error && <Alert severity="error">{(error as Error).message}</Alert>}
+          {isLoading && <LinearProgress />}
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Time</TableCell>
+                  <TableCell>User</TableCell>
+                  <TableCell>Action</TableCell>
+                  <TableCell>Entity</TableCell>
+                  <TableCell>Details</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {entries?.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      {new Date(e.timestamp).toLocaleString()}
+                    </TableCell>
+                    <TableCell>{e.userName}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={e.action}
+                        color={
+                          e.action.includes("Cancel")
+                            ? "error"
+                            : e.action.includes("Create")
+                            ? "success"
+                            : "primary"
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>{e.entityType}</TableCell>
+                    <TableCell>{e.details}</TableCell>
+                  </TableRow>
+                ))}
+                {entries?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                      No audit entries recorded yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {(entries?.length ?? 0) >= take && (
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
+              <Button variant="outlined" onClick={() => setTake((t) => t + 50)}>
+                Load more
+              </Button>
+            </Box>
+          )}
+        </>
+      )}
+
+      {logTab === "email" && (
+        <>
+          {emailsLoading && <LinearProgress />}
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Time</TableCell>
+                  <TableCell>To</TableCell>
+                  <TableCell>Subject</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {emails.map((e, i) => (
+                  <TableRow key={i}>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      {new Date(e.sentAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>{e.to}</TableCell>
+                    <TableCell>{e.subject}</TableCell>
+                  </TableRow>
+                ))}
+                {emails.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
+                      No emails logged yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
     </Stack>
   );

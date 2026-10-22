@@ -19,4 +19,11 @@ public class AuditService(IAppDbContext db)
             .Select(a => new AuditEntryDto(a.Id, a.UserId, a.UserName, a.Action, a.EntityType, a.EntityId, a.Details, a.Timestamp))
             .ToList();
     }
+
+    public async Task<int> ClearAsync(CancellationToken ct = default)
+    {
+        var count = await db.AuditEntries.CountAsync(ct);
+        await db.AuditEntries.ExecuteDeleteAsync(ct);
+        return count;
+    }
 }

@@ -99,6 +99,14 @@ public class AuthController(AuthService auth, ICurrentUser currentUser) : Contro
         return Ok(store.GetRecentEmails());
     }
 
+    [HttpDelete("preview-emails")]
+    [Authorize(Roles = "Admin")]
+    public IActionResult ClearPreviewEmails([FromServices] IPreviewEmailStore store)
+    {
+        store.Clear();
+        return NoContent();
+    }
+
     [HttpGet("me")]
     [Authorize]
     public Task<UserDto> Me(CancellationToken ct) => auth.GetUserAsync(currentUser.UserId, ct);
