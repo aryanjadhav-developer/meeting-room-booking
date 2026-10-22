@@ -1,9 +1,12 @@
+using System.Text.Json;
 using CabinBooking.Domain.Entities;
 
 namespace CabinBooking.Application.Dtos;
 
 public static class Mapping
 {
+    private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
+
     public static UserDto ToDto(this User u) => new(u.Id, u.Name, u.Email, u.Role, u.IsActive);
 
     public static CabinDto ToDto(this Cabin c) => new(
@@ -17,5 +20,13 @@ public static class Mapping
         b.BookedByUserId, b.BookedBy.Name, b.BookedBy.Email,
         b.Title, b.Purpose, b.PurposeDetail, b.Notes,
         b.StartTime, b.EndTime, (int)Math.Round(b.Duration.TotalMinutes),
-        b.Status, b.GetPhase(now), b.CheckedInAt, b.CreatedAt);
+        b.Status, b.GetPhase(now), b.CheckedInAt, b.CreatedAt,
+        DeserializeEmails(b.AttendeeEmailsJson));
+
+    private static List<string>? DeserializeEmails(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<List<string>>(json, _json); }
+        catch { return null; }
+    }
 }

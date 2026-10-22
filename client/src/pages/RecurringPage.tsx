@@ -28,6 +28,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import { api } from "../api/client";
 import { DAY_LABELS, PURPOSES, type BookingPurpose, type RecurringBooking } from "../api/types";
+import { useAuth } from "../auth/AuthContext";
 import { useNotify } from "../components/Notifier";
 import { useCabins, useRules } from "../hooks/queries";
 import { office } from "../utils/time";
@@ -278,6 +279,7 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
               fullWidth
               onChange={(e) => setStartTime(e.target.value)}
               slotProps={{ inputLabel: { shrink: true } }}
+              helperText={rules?.timeZoneId ? `Times in ${rules.timeZoneId}` : undefined}
             />
             <TextField
               select
@@ -365,17 +367,19 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
 export function RecurringPage() {
   const qc = useQueryClient();
   const notify = useNotify();
+  const { isAdmin } = useAuth();
   const { data: schedules = [], isLoading, error } = useQuery({
     queryKey: ["recurring"],
     queryFn: api.recurringBookings,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<RecurringBooking | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<RecurringBooking | null>(null);
 
   const remove = useMutation({
     mutationFn: (id: string) => api.deleteRecurringBooking(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["recurring"] }); notify("Schedule deleted"); },
-    onError: (e) => notify((e as Error).message, "error"),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["recurring"] }); notify("Schedule deleted"); setConfirmDelete(null); },
+    onError: (e) => { notify((e as Error).message, "error"); setConfirmDelete(null); },
   });
 
   const openNew = () => { setEditing(null); setDialogOpen(true); };
@@ -416,6 +420,11 @@ export function RecurringPage() {
                   {!s.isActive && <Chip label="Paused" size="small" color="default" />}
                   <Chip label={s.cabinName} size="small" variant="outlined" />
                 </Stack>
+                {isAdmin && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Created by {s.userName}
+                  </Typography>
+                )}
                 <Typography variant="body2" color="text.secondary">
                   {formatDays(s.daysOfWeek)} · {formatTime(s.startMinuteOfDay)} ({s.durationMinutes} min)
                 </Typography>
@@ -436,7 +445,7 @@ export function RecurringPage() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => window.confirm(`Delete schedule "${s.title}"?`) && remove.mutate(s.id)}
+                    onClick={() => setConfirmDelete(s)}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
@@ -458,6 +467,26 @@ export function RecurringPage() {
         onClose={() => setDialogOpen(false)}
         editing={editing}
       />
+
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete schedule?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Delete &quot;{confirmDelete?.title}&quot;? Future bookings already created will remain, but no new ones will be generated.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={remove.isPending}
+            onClick={() => confirmDelete && remove.mutate(confirmDelete.id)}
+          >
+            {remove.isPending ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

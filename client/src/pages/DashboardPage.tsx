@@ -165,7 +165,7 @@ function CabinCard({ status, busy, now, onBook, onOpen }: CardProps) {
               sx={{ mt: 1, borderRadius: 1 }}
             />
             <Typography variant="caption" color="text.secondary">
-              Ends in {minutesUntil(current.endTime, now)} min
+              {minutesUntil(current.endTime, now) === 0 ? "Ending soon" : `Ends in ${minutesUntil(current.endTime, now)} min`}
             </Typography>
           </Box>
         ) : (

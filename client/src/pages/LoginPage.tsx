@@ -53,9 +53,9 @@ export function LoginPage() {
         <CardContent sx={{ p: 4 }}>
           <Stack spacing={1} sx={{ alignItems: "center", mb: 2 }}>
             <MeetingRoomIcon color="primary" sx={{ fontSize: 40 }} />
-            <Typography variant="h5">Cabin Booking</Typography>
+            <Typography variant="h5">Room Booking</Typography>
             <Typography variant="body2" color="text.secondary">
-              Book a cabin for your meeting in seconds
+              Book a room for your meeting in seconds
             </Typography>
           </Stack>
 

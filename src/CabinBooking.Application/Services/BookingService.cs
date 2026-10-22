@@ -29,11 +29,11 @@ public class BookingService(
         if (to <= from) throw new AppValidationException("'to' must be after 'from'.");
         if (to - from > TimeSpan.FromDays(62)) throw new AppValidationException("Please request at most 62 days at a time.");
 
-        var query = WithDetails();
+        var query = WithDetails().Where(b => b.Status != BookingStatus.Cancelled);
         if (cabinId is not null) query = query.Where(b => b.CabinId == cabinId);
 
         var list = (await query.ToListAsync(ct))
-            .Where(b => b.StartTime < to && b.EndTime > from && b.Status != BookingStatus.Cancelled)
+            .Where(b => b.StartTime < to && b.EndTime > from)
             .OrderBy(b => b.StartTime).ToList();
         return list.Select(b => b.ToDto(rules.Now)).ToList();
     }
@@ -308,7 +308,8 @@ public class BookingService(
                 EndTime = end,
                 Status = BookingStatus.Confirmed,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
+                AttendeeEmailsJson = attendeeEmails is { Count: > 0 } ? System.Text.Json.JsonSerializer.Serialize(attendeeEmails) : null
             };
             db.Bookings.Add(booking);
             await db.SaveChangesAsync(token);

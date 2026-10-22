@@ -240,6 +240,13 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
                 """ALTER TABLE "Bookings" ADD COLUMN "ReminderSentAt" TEXT NULL;""");
         }
         catch { /* column already exists — safe to ignore */ }
+        // Add AttendeeEmailsJson column to Bookings if it was not there yet.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                """ALTER TABLE "Bookings" ADD COLUMN "AttendeeEmailsJson" TEXT NULL;""");
+        }
+        catch { /* column already exists — safe to ignore */ }
     }
     else
     {

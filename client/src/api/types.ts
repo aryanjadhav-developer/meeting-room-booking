@@ -70,6 +70,7 @@ export interface Booking {
   phase: BookingPhase;
   checkedInAt: string | null;
   createdAt: string;
+  attendeeEmails: string[] | null;
 }
 
 export interface CabinStatus {
@@ -135,6 +136,8 @@ export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as c
 
 export interface RecurringBooking {
   id: string;
+  userId: string;
+  userName: string;
   cabinId: number;
   cabinName: string;
   title: string;

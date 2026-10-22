@@ -97,6 +97,7 @@ export function TimelinePage() {
           cabins={cabins}
           bookings={bookings}
           now={now}
+          isWorkingDay={isWorkingDay}
           onSlotClick={(cabinId, start) => isWorkingDay && setDraft({ cabinId, date, start })}
           onBookingClick={setSelected}
         />

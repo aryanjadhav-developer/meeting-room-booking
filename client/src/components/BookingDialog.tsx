@@ -101,6 +101,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
       setPurpose(editing.purpose);
       setPurposeDetail(editing.purposeDetail ?? "");
       setNotes(editing.notes ?? "");
+      setAttendeeEmails(editing.attendeeEmails ?? []);
     } else {
       setCabinId(draft?.cabinId ?? cabins[0]?.id ?? "");
       setDate(draft?.date ?? todayStr());
@@ -210,12 +211,12 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
 
   const maxDate = rules ? office().add(rules.maxDaysAhead, "day").format("YYYY-MM-DD") : undefined;
   // Project/purpose problems are reported on click (field highlights), so the button stays clickable for them.
-  const canSubmit = !!cabinId && !!startAt && !clash && !save.isPending;
+  const canSubmit = !!cabinId && !!startAt && !clash && !save.isPending && effDuration > 0;
   const err = (key: keyof typeof missing) => showErrors && missing[key];
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{editing ? "Edit booking" : "Book a cabin"}</DialogTitle>
+      <DialogTitle>{editing ? "Edit booking" : "Book a room"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
@@ -322,7 +323,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
           {clash && (
             <Alert severity="warning">
               Already booked by <b>{clash.bookedByName}</b> {fmtRange(clash)} ({clash.title}). Pick
-              another time or cabin.
+              another time or room.
             </Alert>
           )}
 

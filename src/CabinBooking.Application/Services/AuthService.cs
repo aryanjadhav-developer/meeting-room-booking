@@ -144,7 +144,7 @@ public class AuthService(
         user.PasswordResetTokenExpiresAt = clock.GetUtcNow().AddHours(1);
         await db.SaveChangesAsync(ct);
 
-        var resetLink = $"{clientBaseUrl.TrimEnd('/')}/reset-password?email={Uri.EscapeDataString(email)}&token={token}";
+        var resetLink = $"{clientBaseUrl.TrimEnd('/')}/reset-password?token={token}";
         var body = $"""
             <h2>Meeting Room Booking - Password Reset</h2>
             <p>Hello {user.Name},</p>

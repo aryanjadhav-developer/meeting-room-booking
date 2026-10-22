@@ -63,6 +63,7 @@ describe('time utilities', () => {
       phase: 'Upcoming',
       checkedInAt: null,
       createdAt: '2026-10-16T08:00:00Z',
+      attendeeEmails: null,
     };
 
     it('returns Cancelled if status is Cancelled', () => {

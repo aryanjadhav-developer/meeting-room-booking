@@ -32,6 +32,9 @@ public class Booking
     public DateTimeOffset? CancelledAt { get; set; }
     public DateTimeOffset? ReminderSentAt { get; set; }
 
+    /// <summary>JSON array of attendee e-mail addresses. Null when no attendees were specified.</summary>
+    public string? AttendeeEmailsJson { get; set; }
+
     public byte[] RowVersion { get; set; } = [];
 
     public TimeSpan Duration => EndTime - StartTime;

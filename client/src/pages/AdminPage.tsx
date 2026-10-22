@@ -27,6 +27,8 @@ import {
   TableRow,
   Tabs,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -422,7 +424,15 @@ function UsersTab() {
   const { user: me } = useAuth();
   const qc = useQueryClient();
   const notify = useNotify();
+  const [userSearch, setUserSearch] = useState("");
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: api.users });
+  const filteredUsers = userSearch.trim()
+    ? users.filter(
+        (u) =>
+          u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+          u.email.toLowerCase().includes(userSearch.toLowerCase())
+      )
+    : users;
   const update = useMutation({
     mutationFn: (args: { id: string; role: UserRole; isActive: boolean }) =>
       api.updateUser(args.id, args.role, args.isActive),
@@ -449,11 +459,18 @@ function UsersTab() {
 
   return (
     <Stack spacing={2}>
-      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+        <TextField
+          size="small"
+          placeholder="Search by name or email…"
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          sx={{ minWidth: 240 }}
+        />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAdding(true)}>
           Add employee
         </Button>
-      </Box>
+      </Stack>
       <Dialog open={adding} onClose={() => setAdding(false)} fullWidth maxWidth="xs">
         <DialogTitle>Add employee</DialogTitle>
         <DialogContent>
@@ -490,7 +507,7 @@ function UsersTab() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {users.map((u) => (
+          {filteredUsers.map((u) => (
             <TableRow key={u.id}>
               <TableCell>{u.name}</TableCell>
               <TableCell>{u.email}</TableCell>
@@ -642,9 +659,10 @@ function ProjectsTab() {
 // ------------------------------------------------------------------ audit
 
 function AuditTab() {
+  const [take, setTake] = useState(50);
   const { data: entries, error, isLoading } = useQuery({
-    queryKey: ["auditLog"],
-    queryFn: () => api.auditLog(100),
+    queryKey: ["auditLog", take],
+    queryFn: () => api.auditLog(take),
   });
 
   return (
@@ -696,11 +714,20 @@ function AuditTab() {
           </TableBody>
         </Table>
       </TableContainer>
+      {(entries?.length ?? 0) >= take && (
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          <Button variant="outlined" onClick={() => setTake((t) => t + 50)}>
+            Load more
+          </Button>
+        </Box>
+      )}
     </Stack>
   );
 }
 
 // ------------------------------------------------------------------ settings
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function SettingsTab() {
   const qc = useQueryClient();
@@ -717,6 +744,8 @@ function SettingsTab() {
   const [maxDuration, setMaxDuration] = useState(240);
   const [maxDaysAhead, setMaxDaysAhead] = useState(30);
   const [checkInGrace, setCheckInGrace] = useState(15);
+  const [workingDays, setWorkingDays] = useState<string[]>([]);
+  const [autoRelease, setAutoRelease] = useState(false);
 
   useEffect(() => {
     if (rules) {
@@ -727,6 +756,8 @@ function SettingsTab() {
       setMaxDuration(rules.maxDurationMinutes);
       setMaxDaysAhead(rules.maxDaysAhead);
       setCheckInGrace(rules.checkInGraceMinutes);
+      setWorkingDays(rules.workingDays);
+      setAutoRelease(rules.autoReleaseEnabled);
     }
   }, [rules]);
 
@@ -741,16 +772,24 @@ function SettingsTab() {
 
   const handleSave = () => {
     if (!rules) return;
+    if (!/^\d{2}:\d{2}$/.test(officeStart) || !/^\d{2}:\d{2}$/.test(officeEnd)) {
+      notify("Office start and end times must be in HH:MM format.", "error");
+      return;
+    }
+    if (workingDays.length === 0) {
+      notify("At least one working day must be selected.", "error");
+      return;
+    }
     const req: UpdateSettingsRequest = {
       officeStart: `${officeStart}:00`,
       officeEnd: `${officeEnd}:00`,
-      workingDays: rules.workingDays,
+      workingDays,
       slotMinutes: Number(slotMinutes),
       minDurationMinutes: Number(minDuration),
       maxDurationMinutes: Number(maxDuration),
       maxDaysAhead: Number(maxDaysAhead),
       checkInOpensMinutesBefore: rules.checkInOpensMinutesBefore,
-      autoReleaseEnabled: rules.autoReleaseEnabled,
+      autoReleaseEnabled: autoRelease,
       checkInGraceMinutes: Number(checkInGrace),
       projects: rules.projects,
     };
@@ -782,6 +821,23 @@ function SettingsTab() {
               slotProps={{ inputLabel: { shrink: true } }}
             />
           </Stack>
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Working Days
+            </Typography>
+            <ToggleButtonGroup
+              value={workingDays}
+              onChange={(_, v: string[]) => { if (v.length > 0) setWorkingDays(v); }}
+              size="small"
+              sx={{ flexWrap: "wrap", gap: 0.5 }}
+            >
+              {DAY_NAMES.map((d) => (
+                <ToggleButton key={d} value={d} sx={{ px: 1.5 }}>
+                  {d.slice(0, 3)}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               label="Slot Duration (mins)"
@@ -821,6 +877,15 @@ function SettingsTab() {
               fullWidth
             />
           </Stack>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={autoRelease}
+                onChange={(e) => setAutoRelease(e.target.checked)}
+              />
+            }
+            label="Auto-release no-show bookings"
+          />
           <Alert severity="info">Projects and their members are managed in the Projects tab.</Alert>
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button

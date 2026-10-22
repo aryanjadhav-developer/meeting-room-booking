@@ -93,7 +93,7 @@ public class AuthController(AuthService auth, ICurrentUser currentUser) : Contro
     }
 
     [HttpGet("preview-emails")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     public ActionResult<IReadOnlyList<SentEmail>> GetPreviewEmails([FromServices] IPreviewEmailStore store)
     {
         return Ok(store.GetRecentEmails());

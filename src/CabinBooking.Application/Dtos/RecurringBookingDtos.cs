@@ -41,4 +41,6 @@ public record UpdateRecurringBookingRequest(
     List<string>? AttendeeEmails,
     string? Notes,
     int? StartMinuteOfDay,
-    int? DurationMinutes);
+    int? DurationMinutes,
+    int? CabinId = null,
+    string? Title = null);

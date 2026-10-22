@@ -50,7 +50,7 @@ export function Layout() {
         <Toolbar sx={{ gap: 1 }}>
           <MeetingRoomIcon color="primary" />
           <Typography variant="h6" sx={{ mr: 2, display: { xs: "none", sm: "block" } }}>
-            Cabin Booking
+            Room Booking
           </Typography>
 
           <Box
@@ -103,7 +103,7 @@ export function Layout() {
             />
           </Tooltip>
 
-          <PreviewEmailsDialog />
+          {isAdmin && <PreviewEmailsDialog />}
 
           <IconButton onClick={(e) => setAnchor(e.currentTarget)} size="small" aria-label="Account">
             <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: 14 }}>

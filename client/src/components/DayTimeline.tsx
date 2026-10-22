@@ -11,6 +11,7 @@ interface Props {
   cabins: Cabin[];
   bookings: Booking[];
   now: Dayjs;
+  isWorkingDay?: boolean;
   onSlotClick(cabinId: number, start: string): void;
   onBookingClick(b: Booking): void;
 }
@@ -25,6 +26,7 @@ export function DayTimeline({
   cabins,
   bookings,
   now,
+  isWorkingDay = true,
   onSlotClick,
   onBookingClick,
 }: Props) {
@@ -125,7 +127,7 @@ export function DayTimeline({
                   position: "relative",
                   flex: 1,
                   height: ROW_HEIGHT,
-                  cursor: "pointer",
+                  cursor: isWorkingDay ? "pointer" : "default",
                   backgroundImage: (theme) =>
                     `repeating-linear-gradient(to right, ${theme.palette.divider} 0 1px, transparent 1px ${100 / (totalMin / 60)}%)`,
                 }}
@@ -160,7 +162,7 @@ export function DayTimeline({
                       pointerEvents: "none",
                       borderRadius: 1,
                       left: `${(hover.minute / totalMin) * 100}%`,
-                      width: `${(30 / totalMin) * 100}%`,
+                      width: `${(rules.slotMinutes / totalMin) * 100}%`,
                       border: "1.5px dashed",
                       borderColor: "primary.main",
                       bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),

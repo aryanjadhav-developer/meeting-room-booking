@@ -53,7 +53,8 @@ public record BookingDto(
     BookingStatus Status,
     BookingPhase Phase,
     DateTimeOffset? CheckedInAt,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    List<string>? AttendeeEmails = null);
 
 /// <summary><paramref name="Title"/> is the project name. <paramref name="Purpose"/> is required (nullable only so a missing value can be reported).</summary>
 public record CreateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);

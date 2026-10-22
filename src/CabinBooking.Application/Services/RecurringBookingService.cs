@@ -14,6 +14,7 @@ public class RecurringBookingService(
     ICurrentUser currentUser,
     BookingRuleValidator rules,
     IAuditLogger audit,
+    IEmailOutbox emailOutbox,
     ILogger<RecurringBookingService> logger)
 {
     private static readonly JsonSerializerOptions _jsonOpts = new() { PropertyNameCaseInsensitive = true };
@@ -38,7 +39,7 @@ public class RecurringBookingService(
 
     public async Task<RecurringBookingDto> CreateAsync(CreateRecurringBookingRequest req, CancellationToken ct)
     {
-        Validate(req.Title, req.DurationMinutes, req.StartDate, req.EndDate, req.DaysOfWeek, req.StartMinuteOfDay);
+        Validate(req.Title, req.DurationMinutes, req.StartDate, req.EndDate, req.DaysOfWeek, req.StartMinuteOfDay, rules);
 
         var cabin = await db.Cabins.AsNoTracking().FirstOrDefaultAsync(c => c.Id == req.CabinId, ct)
                     ?? throw new NotFoundException("Cabin not found.");
@@ -73,6 +74,30 @@ public class RecurringBookingService(
         // timeline right away rather than waiting up to 24h for the scheduler run.
         await ScheduleDueAsync(7, ct);
 
+        // Notify attendees they have been added to a recurring meeting.
+        if (req.AttendeeEmails is { Count: > 0 })
+        {
+            var cabinName = cabin.Name;
+            var days = Deserialize<int>(rb.DaysOfWeekJson);
+            var dayNames = string.Join(", ", days.Select(d => ((DayOfWeek)d).ToString()));
+            var startHhmm = $"{req.StartMinuteOfDay / 60:D2}:{req.StartMinuteOfDay % 60:D2}";
+            var body = $"""
+                <div style="font-family:sans-serif;max-width:600px">
+                  <h2 style="color:#1976d2">You've been added to a recurring meeting</h2>
+                  <table style="border-collapse:collapse;width:100%">
+                    <tr><td style="padding:6px 12px;color:#555"><b>Meeting</b></td><td style="padding:6px 12px">{rb.Title}</td></tr>
+                    <tr style="background:#f5f5f5"><td style="padding:6px 12px;color:#555"><b>Room</b></td><td style="padding:6px 12px">{cabinName}</td></tr>
+                    <tr><td style="padding:6px 12px;color:#555"><b>Days</b></td><td style="padding:6px 12px">{dayNames}</td></tr>
+                    <tr style="background:#f5f5f5"><td style="padding:6px 12px;color:#555"><b>Time</b></td><td style="padding:6px 12px">{startHhmm} ({req.DurationMinutes} min)</td></tr>
+                    <tr><td style="padding:6px 12px;color:#555"><b>From</b></td><td style="padding:6px 12px">{rb.StartDate} to {rb.EndDate}</td></tr>
+                  </table>
+                  <p style="color:#888;font-size:12px;margin-top:24px">You will receive a reminder 15 minutes before each occurrence.</p>
+                </div>
+                """;
+            foreach (var email in req.AttendeeEmails.Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase))
+                await emailOutbox.QueueEmailAsync(new EmailNotification(email, $"You've been added to a recurring meeting: {rb.Title}", body));
+        }
+
         return await LoadDtoAsync(rb.Id, ct);
     }
 
@@ -97,6 +122,20 @@ public class RecurringBookingService(
             rb.AttendeeEmailsJson = req.AttendeeEmails.Count > 0 ? JsonSerializer.Serialize(req.AttendeeEmails) : null;
         if (req.Notes is not null)
             rb.Notes = req.Notes.Trim();
+        if (req.CabinId is > 0)
+        {
+            var cabin = await db.Cabins.AsNoTracking().FirstOrDefaultAsync(c => c.Id == req.CabinId.Value, ct)
+                        ?? throw new NotFoundException("Cabin not found.");
+            if (!cabin.IsActive) throw new AppValidationException("That cabin is no longer active.");
+            rb.CabinId = req.CabinId.Value;
+        }
+        if (req.Title is { Length: > 0 })
+        {
+            var t = req.Title.Trim();
+            if (t.Length < 2) throw new AppValidationException("Title must be at least 2 characters.");
+            if (t.Length > 120) throw new AppValidationException("Title must be 120 characters or fewer.");
+            rb.Title = t;
+        }
         if (req.StartMinuteOfDay.HasValue)
         {
             if (req.StartMinuteOfDay.Value < 0 || req.StartMinuteOfDay.Value >= 1440)
@@ -261,7 +300,7 @@ public class RecurringBookingService(
             throw new ForbiddenException("You do not own this recurring booking.");
     }
 
-    private static void Validate(string title, int duration, DateOnly start, DateOnly end, List<int> days, int startMinute)
+    private static void Validate(string title, int duration, DateOnly start, DateOnly end, List<int> days, int startMinute, BookingRuleValidator rules)
     {
         if (string.IsNullOrWhiteSpace(title) || title.Trim().Length < 2)
             throw new AppValidationException("Title must be at least 2 characters.");
@@ -275,6 +314,15 @@ public class RecurringBookingService(
             throw new AppValidationException("At least one day of the week is required.");
         if (startMinute < 0 || startMinute >= 1440)
             throw new AppValidationException("StartMinuteOfDay must be 0–1439.");
+
+        var officeStartMin = rules.Rules.OfficeStart.Hour * 60 + rules.Rules.OfficeStart.Minute;
+        var officeEndMin = rules.Rules.OfficeEnd.Hour * 60 + rules.Rules.OfficeEnd.Minute;
+        if (startMinute < officeStartMin || startMinute + duration > officeEndMin)
+            throw new AppValidationException($"Recurring meeting must fall within office hours ({rules.Rules.OfficeStart:hh\\:mm}–{rules.Rules.OfficeEnd:hh\\:mm}).");
+
+        var validDays = rules.Rules.WorkingDays;
+        if (validDays.Length > 0 && !days.Any(d => validDays.Contains((DayOfWeek)d)))
+            throw new AppValidationException("At least one selected day must be a working day.");
     }
 
     private static string? ValidatePurposeDetail(BookingPurpose purpose, string? detail)
