@@ -14,7 +14,19 @@ public static class DependencyInjection
         var provider = configuration["Database:Provider"] ?? "Sqlite";
         var connectionString = configuration.GetConnectionString("CabinBooking");
 
-        if (string.Equals(provider, "SqlServer", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException("Connection string 'CabinBooking' is required when Database:Provider is Postgres.");
+
+            services.AddDbContext<AppDbContext>(o =>
+            {
+                o.UseNpgsql(connectionString);
+                o.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
+            services.AddScoped<ICabinLock, PostgresCabinLock>();
+        }
+        else if (string.Equals(provider, "SqlServer", StringComparison.OrdinalIgnoreCase))
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new InvalidOperationException("Connection string 'CabinBooking' is required when Database:Provider is SqlServer.");

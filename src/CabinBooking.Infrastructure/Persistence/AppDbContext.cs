@@ -103,7 +103,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.ToTable("Bookings", t =>
             {
-                t.HasCheckConstraint("CK_Bookings_EndAfterStart", "[EndTime] > [StartTime]");
+                // SQL Server / SQLite use [brackets]; PostgreSQL requires "double quotes".
+                var sql = Database.ProviderName?.Contains("Npgsql") == true
+                    ? "\"EndTime\" > \"StartTime\""
+                    : "[EndTime] > [StartTime]";
+                t.HasCheckConstraint("CK_Bookings_EndAfterStart", sql);
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Title).HasMaxLength(120).IsRequired();
