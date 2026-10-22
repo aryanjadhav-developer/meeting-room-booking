@@ -18,7 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        if (Database.ProviderName != "Microsoft.EntityFrameworkCore.SqlServer")
         {
             foreach (var entry in ChangeTracker.Entries<Booking>())
             {
@@ -115,10 +115,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.PurposeDetail).HasMaxLength(100);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
-            if (Database.IsSqlite())
-                e.Property(x => x.RowVersion).IsRequired().ValueGeneratedNever();
-            else
+            if (Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer")
                 e.Property(x => x.RowVersion).IsRowVersion();
+            else
+                e.Property(x => x.RowVersion).IsRequired().ValueGeneratedNever();
             e.Ignore(x => x.Duration);
 
             e.HasOne(x => x.Cabin).WithMany(c => c.Bookings).HasForeignKey(x => x.CabinId).OnDelete(DeleteBehavior.Restrict);

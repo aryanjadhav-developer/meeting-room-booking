@@ -121,7 +121,7 @@ namespace CabinBooking.Infrastructure.Migrations
                     CancelledAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     ReminderSentAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     AttendeeEmailsJson = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false)
+                    RowVersion = table.Column<byte[]>(type: "bytea", nullable: false)
                 },
                 constraints: table =>
                 {

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CabinBooking.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261022064256_InitialCreate")]
+    [Migration("20261022072032_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -113,9 +113,7 @@ namespace CabinBooking.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<DateTimeOffset>("StartTime")
