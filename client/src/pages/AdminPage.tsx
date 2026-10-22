@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Card,
+  CardActionArea,
   CardContent,
   Chip,
   Dialog,
@@ -34,6 +35,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
@@ -46,25 +48,89 @@ import { useCabins } from "../hooks/queries";
 import { capacityText } from "../utils/format";
 import { office } from "../utils/time";
 
+type TopTab = "reports" | "audit" | "settings";
+type SettingsSub = "cabins" | "users" | "project-purpose" | "rules";
+
 export function AdminPage() {
-  const [tab, setTab] = useState<"reports" | "cabins" | "users" | "projects" | "audit" | "settings">("reports");
+  const [tab, setTab] = useState<TopTab>("reports");
+  const [settingsSub, setSettingsSub] = useState<SettingsSub | null>(null);
+
+  const handleTabChange = (_: unknown, v: TopTab) => {
+    setTab(v);
+    setSettingsSub(null);
+  };
+
   return (
     <Stack spacing={2}>
       <Typography variant="h5">Admin</Typography>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+      <Tabs value={tab} onChange={handleTabChange}>
         <Tab value="reports" label="Utilisation" />
-        <Tab value="cabins" label="Cabins" />
-        <Tab value="users" label="Users" />
-        <Tab value="projects" label="Projects" />
         <Tab value="audit" label="Audit Log" />
         <Tab value="settings" label="Settings" />
       </Tabs>
       {tab === "reports" && <ReportsTab />}
-      {tab === "cabins" && <CabinsTab />}
-      {tab === "users" && <UsersTab />}
-      {tab === "projects" && <ProjectsTab />}
       {tab === "audit" && <AuditTab />}
-      {tab === "settings" && <SettingsTab />}
+      {tab === "settings" && (
+        <SettingsHub sub={settingsSub} onSelect={setSettingsSub} />
+      )}
+    </Stack>
+  );
+}
+
+// ------------------------------------------------------------------ settings hub
+
+const SETTINGS_SECTIONS: { key: SettingsSub; title: string; description: string }[] = [
+  { key: "cabins", title: "Cabins", description: "Add, edit, or disable meeting rooms." },
+  { key: "users", title: "Users", description: "Manage employees, roles, and access." },
+  { key: "project-purpose", title: "Project & Purpose", description: "Configure projects and booking purpose options." },
+  { key: "rules", title: "Booking & Office Rules", description: "Set office hours, slot durations, and booking limits." },
+];
+
+function SettingsHub({ sub, onSelect }: { sub: SettingsSub | null; onSelect(s: SettingsSub | null): void }) {
+  if (sub === null) {
+    return (
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+          maxWidth: 700,
+        }}
+      >
+        {SETTINGS_SECTIONS.map((s) => (
+          <Card key={s.key} variant="outlined">
+            <CardActionArea onClick={() => onSelect(s.key)} sx={{ p: 0.5 }}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {s.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {s.description}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        ))}
+      </Box>
+    );
+  }
+
+  const section = SETTINGS_SECTIONS.find((s) => s.key === sub)!;
+
+  return (
+    <Stack spacing={2}>
+      <Box>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => onSelect(null)} size="small">
+          Back to Settings
+        </Button>
+        <Typography variant="h6" sx={{ mt: 1 }}>
+          {section.title}
+        </Typography>
+      </Box>
+      {sub === "cabins" && <CabinsTab />}
+      {sub === "users" && <UsersTab />}
+      {sub === "project-purpose" && <ProjectAndPurposeSection />}
+      {sub === "rules" && <BookingRulesSection />}
     </Stack>
   );
 }
@@ -669,9 +735,18 @@ function UsersTab() {
   );
 }
 
-// ------------------------------------------------------------------ projects
+// ------------------------------------------------------------------ project & purpose
 
-function ProjectsTab() {
+function ProjectAndPurposeSection() {
+  return (
+    <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
+      <ProjectsPanel />
+      <PurposesPanel />
+    </Box>
+  );
+}
+
+function ProjectsPanel() {
   const qc = useQueryClient();
   const notify = useNotify();
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: api.projects });
@@ -708,13 +783,14 @@ function ProjectsTab() {
 
   return (
     <Stack spacing={2}>
-      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => open("new")}>
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Projects</Typography>
+        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => open("new")}>
           Add project
         </Button>
-      </Box>
+      </Stack>
       <TableContainer component={Paper} variant="outlined">
-        <Table>
+        <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Project</TableCell>
@@ -735,9 +811,7 @@ function ProjectsTab() {
                         .join(", ")}
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" onClick={() => open(p)}>
-                    Edit
-                  </Button>
+                  <Button size="small" onClick={() => open(p)}>Edit</Button>
                   <Button
                     size="small"
                     color="error"
@@ -774,6 +848,111 @@ function ProjectsTab() {
           </Button>
         </DialogActions>
       </Dialog>
+    </Stack>
+  );
+}
+
+function PurposesPanel() {
+  const qc = useQueryClient();
+  const notify = useNotify();
+  const { data: rules, isLoading } = useQuery({ queryKey: ["rules"], queryFn: api.rules });
+  const [purposes, setPurposes] = useState<string[]>([]);
+  const [newPurpose, setNewPurpose] = useState("");
+
+  useEffect(() => {
+    if (rules) setPurposes(rules.purposes ?? []);
+  }, [rules]);
+
+  const update = useMutation({
+    mutationFn: (req: UpdateSettingsRequest) => api.updateRules(req),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["rules"] }); notify("Purposes saved"); },
+    onError: (e) => notify((e as Error).message, "error"),
+  });
+
+  const savePurposes = (list: string[]) => {
+    if (!rules) return;
+    update.mutate({
+      officeStart: rules.officeStart,
+      officeEnd: rules.officeEnd,
+      workingDays: rules.workingDays,
+      slotMinutes: rules.slotMinutes,
+      minDurationMinutes: rules.minDurationMinutes,
+      maxDurationMinutes: rules.maxDurationMinutes,
+      maxDaysAhead: rules.maxDaysAhead,
+      checkInOpensMinutesBefore: rules.checkInOpensMinutesBefore,
+      autoReleaseEnabled: rules.autoReleaseEnabled,
+      checkInGraceMinutes: rules.checkInGraceMinutes,
+      projects: rules.projects,
+      purposes: list,
+    });
+  };
+
+  if (isLoading) return <LinearProgress />;
+
+  return (
+    <Stack spacing={2}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Purpose Options</Typography>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+            {purposes.map((p) => (
+              <Chip
+                key={p}
+                label={p}
+                onDelete={() => {
+                  const updated = purposes.filter((x) => x !== p);
+                  setPurposes(updated);
+                  savePurposes(updated);
+                }}
+                size="small"
+              />
+            ))}
+            {purposes.length === 0 && (
+              <Typography variant="body2" color="text.secondary">No purposes configured.</Typography>
+            )}
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <TextField
+              size="small"
+              placeholder="Add purpose…"
+              value={newPurpose}
+              onChange={(e) => setNewPurpose(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const v = newPurpose.trim();
+                  if (v && !purposes.includes(v)) {
+                    const updated = [...purposes, v];
+                    setPurposes(updated);
+                    savePurposes(updated);
+                  }
+                  setNewPurpose("");
+                }
+              }}
+              slotProps={{ htmlInput: { maxLength: 50 } }}
+            />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AddIcon />}
+              disabled={update.isPending}
+              onClick={() => {
+                const v = newPurpose.trim();
+                if (v && !purposes.includes(v)) {
+                  const updated = [...purposes, v];
+                  setPurposes(updated);
+                  savePurposes(updated);
+                }
+                setNewPurpose("");
+              }}
+            >
+              Add
+            </Button>
+          </Stack>
+          <Typography variant="caption" color="text.secondary">
+            Changes save immediately when you add or remove a purpose.
+          </Typography>
+        </Stack>
+      </Paper>
     </Stack>
   );
 }
@@ -847,11 +1026,11 @@ function AuditTab() {
   );
 }
 
-// ------------------------------------------------------------------ settings
+// ------------------------------------------------------------------ booking & office rules
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function SettingsTab() {
+function BookingRulesSection() {
   const qc = useQueryClient();
   const notify = useNotify();
   const { data: rules, isLoading } = useQuery({
@@ -868,8 +1047,6 @@ function SettingsTab() {
   const [checkInGrace, setCheckInGrace] = useState(15);
   const [workingDays, setWorkingDays] = useState<string[]>([]);
   const [autoRelease, setAutoRelease] = useState(false);
-  const [purposes, setPurposes] = useState<string[]>([]);
-  const [newPurpose, setNewPurpose] = useState("");
 
   useEffect(() => {
     if (rules) {
@@ -882,7 +1059,6 @@ function SettingsTab() {
       setCheckInGrace(rules.checkInGraceMinutes);
       setWorkingDays(rules.workingDays);
       setAutoRelease(rules.autoReleaseEnabled);
-      setPurposes(rules.purposes ?? []);
     }
   }, [rules]);
 
@@ -917,7 +1093,7 @@ function SettingsTab() {
       autoReleaseEnabled: autoRelease,
       checkInGraceMinutes: Number(checkInGrace),
       projects: rules.projects,
-      purposes,
+      purposes: rules.purposes,
     };
     update.mutate(req);
   };
@@ -928,7 +1104,6 @@ function SettingsTab() {
     <Card sx={{ maxWidth: 650 }}>
       <CardContent>
         <Stack spacing={3}>
-          <Typography variant="h6">Booking & Office Rules</Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               label="Office Start Time"
@@ -1012,52 +1187,6 @@ function SettingsTab() {
             }
             label="Auto-release no-show bookings"
           />
-          <Alert severity="info">Projects and their members are managed in the Projects tab.</Alert>
-
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>Purpose Options</Typography>
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
-                {purposes.map((p) => (
-                  <Chip
-                    key={p}
-                    label={p}
-                    onDelete={() => setPurposes(purposes.filter((x) => x !== p))}
-                    size="small"
-                  />
-                ))}
-              </Stack>
-              <Stack direction="row" spacing={1}>
-                <TextField
-                  size="small"
-                  placeholder="Add purpose…"
-                  value={newPurpose}
-                  onChange={(e) => setNewPurpose(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const v = newPurpose.trim();
-                      if (v && !purposes.includes(v)) setPurposes([...purposes, v]);
-                      setNewPurpose("");
-                    }
-                  }}
-                  slotProps={{ htmlInput: { maxLength: 50 } }}
-                />
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() => {
-                    const v = newPurpose.trim();
-                    if (v && !purposes.includes(v)) setPurposes([...purposes, v]);
-                    setNewPurpose("");
-                  }}
-                >
-                  Add
-                </Button>
-              </Stack>
-            </Stack>
-          </Box>
-
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button
               variant="contained"
