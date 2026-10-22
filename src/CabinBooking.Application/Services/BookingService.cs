@@ -91,7 +91,7 @@ public class BookingService(
     {
         var start = Truncate(rules.Now);
         var title = string.IsNullOrWhiteSpace(request.Title) ? "Quick meeting" : request.Title;
-        return CreateCoreAsync(request.CabinId, title, BookingPurpose.Meeting, null, null,
+        return CreateCoreAsync(request.CabinId, title, "Meeting", null, null,
             start, start.AddMinutes(request.DurationMinutes), null, ct);
     }
 
@@ -283,7 +283,7 @@ public class BookingService(
 
     // ---------------------------------------------------------------- helpers
 
-    private async Task<BookingDto> CreateCoreAsync(int cabinId, string title, BookingPurpose? requestedPurpose, string? requestedDetail,
+    private async Task<BookingDto> CreateCoreAsync(int cabinId, string title, string? requestedPurpose, string? requestedDetail,
         string? notes, DateTimeOffset start, DateTimeOffset end, List<string>? attendeeEmails, CancellationToken ct)
     {
         var (purpose, purposeDetail) = ValidateDetails(title, requestedPurpose, requestedDetail, notes);
@@ -399,19 +399,19 @@ public class BookingService(
     }
 
     /// <summary>Validates project, purpose and notes. Returns the purpose plus its detail (kept only for "Other").</summary>
-    private static (BookingPurpose Purpose, string? Detail) ValidateDetails(string? project, BookingPurpose? purpose, string? purposeDetail, string? notes)
+    private static (string Purpose, string? Detail) ValidateDetails(string? project, string? purpose, string? purposeDetail, string? notes)
     {
         if (string.IsNullOrWhiteSpace(project)) throw new AppValidationException("Project is required.");
         if (project.Trim().Length > MaxTitleLength) throw new AppValidationException($"Project name can be at most {MaxTitleLength} characters.");
-        if (purpose is null || !Enum.IsDefined(purpose.Value)) throw new AppValidationException("Purpose is required.");
+        if (string.IsNullOrWhiteSpace(purpose)) throw new AppValidationException("Purpose is required.");
         if (notes?.Length > MaxNotesLength) throw new AppValidationException($"Notes can be at most {MaxNotesLength} characters.");
 
-        if (purpose != BookingPurpose.Other) return (purpose.Value, null);
+        if (purpose != "Other") return (purpose, null);
 
         var detail = purposeDetail?.Trim();
         if (string.IsNullOrEmpty(detail)) throw new AppValidationException("Please describe the purpose when choosing 'Other'.");
         if (detail.Length > MaxPurposeDetailLength) throw new AppValidationException($"Purpose description can be at most {MaxPurposeDetailLength} characters.");
-        return (BookingPurpose.Other, detail);
+        return ("Other", detail);
     }
 
     private async Task<Booking> LoadAsync(Guid id, CancellationToken ct) =>

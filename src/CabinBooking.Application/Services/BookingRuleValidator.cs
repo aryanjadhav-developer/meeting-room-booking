@@ -25,6 +25,9 @@ public class BookingRuleValidator
         var projects = src.Projects.Length > 0
             ? src.Projects.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray()
             : BookingRulesOptions.DefaultProjects;
+        var purposes = src.Purposes.Length > 0
+            ? src.Purposes.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray()
+            : BookingRulesOptions.DefaultPurposes;
 
         _rules = new BookingRulesOptions
         {
@@ -39,7 +42,8 @@ public class BookingRuleValidator
             CheckInOpensMinutesBefore = src.CheckInOpensMinutesBefore,
             AutoReleaseEnabled = src.AutoReleaseEnabled,
             CheckInGraceMinutes = src.CheckInGraceMinutes,
-            Projects = projects.ToArray()
+            Projects = projects.ToArray(),
+            Purposes = purposes.ToArray()
         };
 
         _initialDefaults = new BookingRulesOptions
@@ -55,7 +59,8 @@ public class BookingRuleValidator
             CheckInOpensMinutesBefore = _rules.CheckInOpensMinutesBefore,
             AutoReleaseEnabled = _rules.AutoReleaseEnabled,
             CheckInGraceMinutes = _rules.CheckInGraceMinutes,
-            Projects = projects.ToArray()
+            Projects = projects.ToArray(),
+            Purposes = purposes.ToArray()
         };
 
         _clock = clock;
@@ -75,6 +80,7 @@ public class BookingRuleValidator
         _rules.AutoReleaseEnabled = _initialDefaults.AutoReleaseEnabled;
         _rules.CheckInGraceMinutes = _initialDefaults.CheckInGraceMinutes;
         _rules.Projects = _initialDefaults.Projects.ToArray();
+        _rules.Purposes = _initialDefaults.Purposes.ToArray();
     }
 
     public TimeZoneInfo Zone { get; }
@@ -137,7 +143,7 @@ public class BookingRuleValidator
     public BookingRulesDto ToDto() => new(
         _rules.TimeZoneId, _rules.OfficeStart, _rules.OfficeEnd, _rules.WorkingDays,
         _rules.SlotMinutes, _rules.MinDurationMinutes, _rules.MaxDurationMinutes, _rules.MaxDaysAhead,
-        _rules.CheckInOpensMinutesBefore, _rules.AutoReleaseEnabled, _rules.CheckInGraceMinutes, _rules.Projects);
+        _rules.CheckInOpensMinutesBefore, _rules.AutoReleaseEnabled, _rules.CheckInGraceMinutes, _rules.Projects, _rules.Purposes);
 
     public void ApplyUpdate(UpdateSettingsRequest request)
     {
@@ -161,6 +167,9 @@ public class BookingRuleValidator
         _rules.AutoReleaseEnabled = request.AutoReleaseEnabled;
         _rules.CheckInGraceMinutes = request.CheckInGraceMinutes;
         _rules.Projects = request.Projects.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray();
+        _rules.Purposes = request.Purposes.Length > 0
+            ? request.Purposes.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToArray()
+            : BookingRulesOptions.DefaultPurposes;
     }
 
     private DateOnly ToLocalDate(DateTimeOffset value) => DateOnly.FromDateTime(ToLocal(value).DateTime);

@@ -102,8 +102,8 @@ namespace CabinBooking.Infrastructure.Migrations
 
                     b.Property<string>("Purpose")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("PurposeDetail")
                         .HasMaxLength(100)
@@ -296,8 +296,8 @@ namespace CabinBooking.Infrastructure.Migrations
 
                     b.Property<string>("Purpose")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("PurposeDetail")
                         .HasMaxLength(100)

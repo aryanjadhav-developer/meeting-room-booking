@@ -1,9 +1,9 @@
 export type UserRole = "Employee" | "Admin";
-export type BookingPurpose = "Meeting" | "Discussion" | "Interview" | "Call" | "Other";
+export type BookingPurpose = string;
 export type BookingStatus = "Confirmed" | "Cancelled" | "NoShow";
 export type BookingPhase = "Upcoming" | "InProgress" | "Completed" | "Cancelled" | "NoShow";
 
-export const PURPOSES: BookingPurpose[] = ["Meeting", "Discussion", "Interview", "Call", "Other"];
+export const PURPOSES: string[] = ["Meeting", "Discussion", "Interview", "Call", "Other"];
 
 export interface User {
   id: string;
@@ -104,6 +104,7 @@ export interface BookingRules {
   autoReleaseEnabled: boolean;
   checkInGraceMinutes: number;
   projects: string[];
+  purposes: string[];
 }
 
 export interface CabinUtilization {
@@ -205,4 +206,5 @@ export interface UpdateSettingsRequest {
   autoReleaseEnabled: boolean;
   checkInGraceMinutes: number;
   projects: string[];
+  purposes: string[];
 }

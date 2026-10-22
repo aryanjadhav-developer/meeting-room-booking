@@ -365,7 +365,7 @@ export function BookingDialog({ open, onClose, draft, editing }: Props) {
             error={err("purpose")}
             helperText={err("purpose") ? "Please choose a purpose" : undefined}
           >
-            {PURPOSES.map((p) => (
+            {(rules?.purposes ?? PURPOSES).map((p) => (
               <MenuItem key={p} value={p}>
                 {p}
               </MenuItem>

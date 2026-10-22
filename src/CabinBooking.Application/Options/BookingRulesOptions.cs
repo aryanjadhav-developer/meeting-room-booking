@@ -22,6 +22,11 @@ public class BookingRulesOptions
 
     public static readonly string[] DefaultProjects = ["Project Alpha", "Project Beta", "Project Gamma"];
 
+    /// <summary>Purpose values offered in the booking form. Empty = <see cref="DefaultPurposes"/>.</summary>
+    public string[] Purposes { get; set; } = [];
+
+    public static readonly string[] DefaultPurposes = ["Meeting", "Discussion", "Interview", "Call", "Other"];
+
     public int SlotMinutes { get; set; } = 15;
     public int MinDurationMinutes { get; set; } = 15;
     public int MaxDurationMinutes { get; set; } = 240;

@@ -1,5 +1,3 @@
-using CabinBooking.Domain.Enums;
-
 namespace CabinBooking.Application.Dtos;
 
 public record RecurringBookingDto(
@@ -9,7 +7,7 @@ public record RecurringBookingDto(
     int CabinId,
     string CabinName,
     string Title,
-    BookingPurpose Purpose,
+    string Purpose,
     string? PurposeDetail,
     string? Notes,
     DateOnly StartDate,
@@ -24,7 +22,7 @@ public record RecurringBookingDto(
 public record CreateRecurringBookingRequest(
     int CabinId,
     string Title,
-    BookingPurpose Purpose,
+    string Purpose,
     string? PurposeDetail,
     string? Notes,
     DateOnly StartDate,

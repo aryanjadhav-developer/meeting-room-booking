@@ -868,6 +868,8 @@ function SettingsTab() {
   const [checkInGrace, setCheckInGrace] = useState(15);
   const [workingDays, setWorkingDays] = useState<string[]>([]);
   const [autoRelease, setAutoRelease] = useState(false);
+  const [purposes, setPurposes] = useState<string[]>([]);
+  const [newPurpose, setNewPurpose] = useState("");
 
   useEffect(() => {
     if (rules) {
@@ -880,6 +882,7 @@ function SettingsTab() {
       setCheckInGrace(rules.checkInGraceMinutes);
       setWorkingDays(rules.workingDays);
       setAutoRelease(rules.autoReleaseEnabled);
+      setPurposes(rules.purposes ?? []);
     }
   }, [rules]);
 
@@ -914,6 +917,7 @@ function SettingsTab() {
       autoReleaseEnabled: autoRelease,
       checkInGraceMinutes: Number(checkInGrace),
       projects: rules.projects,
+      purposes,
     };
     update.mutate(req);
   };
@@ -1009,6 +1013,51 @@ function SettingsTab() {
             label="Auto-release no-show bookings"
           />
           <Alert severity="info">Projects and their members are managed in the Projects tab.</Alert>
+
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Purpose Options</Typography>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+                {purposes.map((p) => (
+                  <Chip
+                    key={p}
+                    label={p}
+                    onDelete={() => setPurposes(purposes.filter((x) => x !== p))}
+                    size="small"
+                  />
+                ))}
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  size="small"
+                  placeholder="Add purpose…"
+                  value={newPurpose}
+                  onChange={(e) => setNewPurpose(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const v = newPurpose.trim();
+                      if (v && !purposes.includes(v)) setPurposes([...purposes, v]);
+                      setNewPurpose("");
+                    }
+                  }}
+                  slotProps={{ htmlInput: { maxLength: 50 } }}
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    const v = newPurpose.trim();
+                    if (v && !purposes.includes(v)) setPurposes([...purposes, v]);
+                    setNewPurpose("");
+                  }}
+                >
+                  Add
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button
               variant="contained"

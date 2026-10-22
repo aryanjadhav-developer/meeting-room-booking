@@ -325,10 +325,10 @@ public class RecurringBookingService(
             throw new AppValidationException("At least one selected day must be a working day.");
     }
 
-    private static string? ValidatePurposeDetail(BookingPurpose purpose, string? detail)
+    private static string? ValidatePurposeDetail(string purpose, string? detail)
     {
-        if (purpose == BookingPurpose.Other && string.IsNullOrWhiteSpace(detail))
+        if (purpose == "Other" && string.IsNullOrWhiteSpace(detail))
             throw new AppValidationException("Purpose detail is required when purpose is 'Other'.");
-        return purpose == BookingPurpose.Other ? detail?.Trim() : null;
+        return purpose == "Other" ? detail?.Trim() : null;
     }
 }

@@ -94,7 +94,18 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
 
   const pickProject = (value: string) => {
     setProject(value);
-    if (value !== OTHER_PROJECT) setCustomProject("");
+    if (value !== OTHER_PROJECT && value !== "") {
+      const proj = projectList.find((p) => p.name === value);
+      if (proj) {
+        const emails = directory
+          .filter((u) => proj.memberUserIds.includes(u.id))
+          .map((u) => u.email);
+        setAttendeeEmails([...new Set(emails)]);
+      }
+    } else {
+      setCustomProject("");
+      setAttendeeEmails([]);
+    }
   };
 
   const title = project === OTHER_PROJECT ? customProject.trim() : project;
@@ -236,7 +247,7 @@ function RecurringDialog({ open, onClose, editing }: DialogProps) {
             onChange={(e) => setPurpose(e.target.value as BookingPurpose)}
             error={err("purpose")}
           >
-            {PURPOSES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+            {(rules?.purposes ?? PURPOSES).map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
           </TextField>
           {purpose === "Other" && (
             <TextField

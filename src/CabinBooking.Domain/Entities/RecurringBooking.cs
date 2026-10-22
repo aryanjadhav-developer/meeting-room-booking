@@ -1,5 +1,3 @@
-using CabinBooking.Domain.Enums;
-
 namespace CabinBooking.Domain.Entities;
 
 public class RecurringBooking
@@ -11,7 +9,7 @@ public class RecurringBooking
     public Cabin Cabin { get; set; } = null!;
 
     public string Title { get; set; } = string.Empty;
-    public BookingPurpose Purpose { get; set; }
+    public string Purpose { get; set; } = string.Empty;
     public string? PurposeDetail { get; set; }
     public string? Notes { get; set; }
 

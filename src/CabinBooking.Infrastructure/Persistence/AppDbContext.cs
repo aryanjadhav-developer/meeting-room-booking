@@ -112,7 +112,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.Property(x => x.Title).HasMaxLength(120).IsRequired();
             e.Property(x => x.Notes).HasMaxLength(1000);
-            e.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Purpose).HasMaxLength(50);
             e.Property(x => x.PurposeDetail).HasMaxLength(100);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             if (Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer")
@@ -134,7 +134,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable("RecurringBookings");
             e.HasKey(x => x.Id);
             e.Property(x => x.Title).HasMaxLength(120).IsRequired();
-            e.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Purpose).HasMaxLength(50);
             e.Property(x => x.PurposeDetail).HasMaxLength(100);
             e.Property(x => x.Notes).HasMaxLength(1000);
             e.Property(x => x.DaysOfWeekJson).HasMaxLength(100).IsRequired();

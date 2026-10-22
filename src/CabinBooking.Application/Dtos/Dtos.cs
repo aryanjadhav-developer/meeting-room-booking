@@ -46,7 +46,7 @@ public record BookingDto(
     string BookedByName,
     string BookedByEmail,
     string Title,
-    BookingPurpose Purpose,
+    string Purpose,
     string? PurposeDetail,
     string? Notes,
     DateTimeOffset StartTime,
@@ -59,9 +59,9 @@ public record BookingDto(
     List<string>? AttendeeEmails = null);
 
 /// <summary><paramref name="Title"/> is the project name. <paramref name="Purpose"/> is required (nullable only so a missing value can be reported).</summary>
-public record CreateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);
+public record CreateBookingRequest(int CabinId, string Title, string? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);
 
-public record UpdateBookingRequest(int CabinId, string Title, BookingPurpose? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);
+public record UpdateBookingRequest(int CabinId, string Title, string? Purpose, string? Notes, DateTimeOffset StartTime, DateTimeOffset EndTime, string? PurposeDetail = null, List<string>? AttendeeEmails = null);
 
 public record QuickBookRequest(int CabinId, int DurationMinutes, string? Title);
 
@@ -83,7 +83,8 @@ public record BookingRulesDto(
     int CheckInOpensMinutesBefore,
     bool AutoReleaseEnabled,
     int CheckInGraceMinutes,
-    string[] Projects);
+    string[] Projects,
+    string[] Purposes);
 
 // ---------- Reports ----------
 public record CabinUtilizationDto(int CabinId, string CabinName, int BookingCount, double BookedHours, double AvailableHours, double UtilizationPercent, int NoShowCount, int CancelledCount);
@@ -109,4 +110,5 @@ public record UpdateSettingsRequest(
     int CheckInOpensMinutesBefore,
     bool AutoReleaseEnabled,
     int CheckInGraceMinutes,
-    string[] Projects);
+    string[] Projects,
+    string[] Purposes);

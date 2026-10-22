@@ -14,7 +14,7 @@ public class Booking
 
     /// <summary>Project name (one of the configured projects, or a custom name when "Other" was chosen).</summary>
     public string Title { get; set; } = string.Empty;
-    public BookingPurpose Purpose { get; set; }
+    public string Purpose { get; set; } = string.Empty;
     /// <summary>Free-text description, required when <see cref="Purpose"/> is Other.</summary>
     public string? PurposeDetail { get; set; }
     public string? Notes { get; set; }
