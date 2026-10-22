@@ -103,6 +103,11 @@ public class AuthController(AuthService auth, ICurrentUser currentUser) : Contro
     [Authorize]
     public Task<UserDto> Me(CancellationToken ct) => auth.GetUserAsync(currentUser.UserId, ct);
 
+    [HttpPut("me")]
+    [Authorize]
+    public Task<UserDto> UpdateMe([FromBody] UpdateProfileRequest request, [FromServices] UserService users, CancellationToken ct) =>
+        users.UpdateProfileAsync(currentUser.UserId, request, ct);
+
     private void SetRefreshTokenCookie(string token)
     {
         Response.Cookies.Append(RefreshCookieName, token, new CookieOptions

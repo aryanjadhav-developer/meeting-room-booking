@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  IconButton,
   LinearProgress,
   MenuItem,
   Paper,
@@ -33,7 +34,9 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
+import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import { api, tokenStore } from "../api/client";
 import type { Cabin, Project, UpsertCabin, User, UserRole, UpdateSettingsRequest } from "../api/types";
@@ -248,8 +251,21 @@ const EMPTY_CABIN: UpsertCabin = {
 };
 
 function CabinsTab() {
+  const qc = useQueryClient();
+  const notify = useNotify();
   const { data: cabins = [] } = useCabins(true);
   const [editing, setEditing] = useState<Cabin | "new" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Cabin | null>(null);
+
+  const remove = useMutation({
+    mutationFn: (id: number) => api.deleteCabin(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cabins"] });
+      notify("Room deleted");
+      setConfirmDelete(null);
+    },
+    onError: (e) => { notify((e as Error).message, "error"); setConfirmDelete(null); },
+  });
 
   return (
     <Stack spacing={2}>
@@ -266,7 +282,7 @@ function CabinsTab() {
               <TableCell>Capacity</TableCell>
               <TableCell>Amenities</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell />
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -297,9 +313,12 @@ function CabinsTab() {
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" onClick={() => setEditing(c)}>
-                    Edit
-                  </Button>
+                  <Tooltip title="Edit">
+                    <IconButton size="small" onClick={() => setEditing(c)}><EditIcon fontSize="small" /></IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" color="error" onClick={() => setConfirmDelete(c)}><DeleteIcon fontSize="small" /></IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -307,6 +326,22 @@ function CabinsTab() {
         </Table>
       </TableContainer>
       <CabinDialog cabin={editing} onClose={() => setEditing(null)} />
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete room?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Delete <strong>{confirmDelete?.name}</strong>? This cannot be undone.
+            Rooms with existing bookings cannot be deleted — disable them instead.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button color="error" variant="contained" disabled={remove.isPending}
+            onClick={() => confirmDelete && remove.mutate(confirmDelete.id)}>
+            {remove.isPending ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
@@ -433,16 +468,15 @@ function UsersTab() {
           u.email.toLowerCase().includes(userSearch.toLowerCase())
       )
     : users;
+
   const update = useMutation({
     mutationFn: (args: { id: string; role: UserRole; isActive: boolean }) =>
       api.updateUser(args.id, args.role, args.isActive),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["users"] });
-      notify("User updated");
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); notify("User updated"); },
     onError: (e) => notify((e as Error).message, "error"),
   });
 
+  // --- add ---
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "Employee" as UserRole });
   const create = useMutation({
@@ -455,6 +489,32 @@ function UsersTab() {
       setForm({ name: "", email: "", password: "", role: "Employee" });
     },
     onError: (e) => notify((e as Error).message, "error"),
+  });
+
+  // --- edit ---
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", role: "Employee" as UserRole, isActive: true });
+  const openEdit = (u: User) => { setEditUser(u); setEditForm({ name: u.name, role: u.role, isActive: u.isActive }); };
+  const saveEdit = useMutation({
+    mutationFn: () => {
+      if (!editUser) throw new Error("No user");
+      return api.updateUser(editUser.id, editForm.role, editForm.isActive);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); notify("User updated"); setEditUser(null); },
+    onError: (e) => notify((e as Error).message, "error"),
+  });
+
+  // --- delete ---
+  const [confirmDelete, setConfirmDelete] = useState<User | null>(null);
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteUser(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["directory"] });
+      notify("User deleted");
+      setConfirmDelete(null);
+    },
+    onError: (e) => { notify((e as Error).message, "error"); setConfirmDelete(null); },
   });
 
   return (
@@ -471,6 +531,8 @@ function UsersTab() {
           Add employee
         </Button>
       </Stack>
+
+      {/* Add dialog */}
       <Dialog open={adding} onClose={() => setAdding(false)} fullWidth maxWidth="xs">
         <DialogTitle>Add employee</DialogTitle>
         <DialogContent>
@@ -496,53 +558,113 @@ function UsersTab() {
           </Button>
         </DialogActions>
       </Dialog>
-    <TableContainer component={Paper} variant="outlined">
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Name</TableCell>
-            <TableCell>E-mail</TableCell>
-            <TableCell>Role</TableCell>
-            <TableCell>Active</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {filteredUsers.map((u) => (
-            <TableRow key={u.id}>
-              <TableCell>{u.name}</TableCell>
-              <TableCell>{u.email}</TableCell>
-              <TableCell>
-                <TextField
-                  select
-                  size="small"
-                  value={u.role}
-                  disabled={u.id === me?.id}
-                  onChange={(e) =>
-                    update.mutate({
-                      id: u.id,
-                      role: e.target.value as UserRole,
-                      isActive: u.isActive,
-                    })
-                  }
-                >
-                  <MenuItem value="Employee">Employee</MenuItem>
-                  <MenuItem value="Admin">Admin</MenuItem>
-                </TextField>
-              </TableCell>
-              <TableCell>
-                <Switch
-                  checked={u.isActive}
-                  disabled={u.id === me?.id}
-                  onChange={(e) =>
-                    update.mutate({ id: u.id, role: u.role, isActive: e.target.checked })
-                  }
-                />
-              </TableCell>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editUser} onClose={() => setEditUser(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Edit user</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Name" value={editUser?.name ?? ""} disabled helperText="Contact admin to change name" />
+            <TextField label="E-mail" value={editUser?.email ?? ""} disabled />
+            <TextField select label="Role" value={editForm.role}
+              disabled={editUser?.id === me?.id}
+              onChange={(e) => setEditForm({ ...editForm, role: e.target.value as UserRole })}>
+              <MenuItem value="Employee">Employee</MenuItem>
+              <MenuItem value="Admin">Admin</MenuItem>
+            </TextField>
+            <FormControlLabel
+              control={
+                <Switch checked={editForm.isActive}
+                  disabled={editUser?.id === me?.id}
+                  onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })} />
+              }
+              label={editForm.isActive ? "Active" : "Deactivated"}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditUser(null)}>Cancel</Button>
+          <Button variant="contained" onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending}>
+            {saveEdit.isPending ? "Saving…" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete user?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Permanently delete <strong>{confirmDelete?.name}</strong> ({confirmDelete?.email})?
+            Their bookings will remain in the system.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button color="error" variant="contained" disabled={remove.isPending}
+            onClick={() => confirmDelete && remove.mutate(confirmDelete.id)}>
+            {remove.isPending ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>E-mail</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Active</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          </TableHead>
+          <TableBody>
+            {filteredUsers.map((u) => (
+              <TableRow key={u.id}>
+                <TableCell>{u.name}</TableCell>
+                <TableCell>{u.email}</TableCell>
+                <TableCell>
+                  <TextField
+                    select
+                    size="small"
+                    value={u.role}
+                    disabled={u.id === me?.id}
+                    onChange={(e) =>
+                      update.mutate({ id: u.id, role: e.target.value as UserRole, isActive: u.isActive })
+                    }
+                  >
+                    <MenuItem value="Employee">Employee</MenuItem>
+                    <MenuItem value="Admin">Admin</MenuItem>
+                  </TextField>
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={u.isActive}
+                    disabled={u.id === me?.id}
+                    onChange={(e) =>
+                      update.mutate({ id: u.id, role: u.role, isActive: e.target.checked })
+                    }
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title="Edit">
+                    <IconButton size="small" onClick={() => openEdit(u)}><EditIcon fontSize="small" /></IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <span>
+                      <IconButton size="small" color="error" disabled={u.id === me?.id}
+                        onClick={() => setConfirmDelete(u)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Stack>
   );
 }

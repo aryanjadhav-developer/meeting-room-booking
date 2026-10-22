@@ -37,4 +37,12 @@ public class CabinsController(CabinService cabins, BookingService bookings) : Co
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
     public Task<CabinDto> Update(int id, UpsertCabinRequest request, CancellationToken ct) => cabins.UpdateAsync(id, request, ct);
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        await cabins.DeleteAsync(id, ct);
+        return NoContent();
+    }
 }

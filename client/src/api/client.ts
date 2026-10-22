@@ -164,6 +164,7 @@ export const api = {
   cabinStatus: () => request<CabinStatus[]>("GET", "/api/cabins/status"),
   createCabin: (c: UpsertCabin) => request<Cabin>("POST", "/api/cabins", c),
   updateCabin: (id: number, c: UpsertCabin) => request<Cabin>("PUT", `/api/cabins/${id}`, c),
+  deleteCabin: (id: number) => request<void>("DELETE", `/api/cabins/${id}`),
 
   // bookings
   bookings: (from: string, to: string, cabinId?: number) =>
@@ -193,6 +194,9 @@ export const api = {
   deleteProject: (id: number) => request<void>("DELETE", `/api/projects/${id}`),
   updateUser: (id: string, role: UserRole, isActive: boolean) =>
     request<User>("PUT", `/api/users/${id}`, { role, isActive }),
+  deleteUser: (id: string) => request<void>("DELETE", `/api/users/${id}`),
+  updateProfile: (body: { name?: string; currentPassword?: string; newPassword?: string }) =>
+    request<User>("PUT", "/api/auth/me", body),
   utilization: (from: string, to: string) =>
     request<UtilizationReport>("GET", `/api/reports/utilization?${qs({ from, to })}`),
   updateRules: (rules: UpdateSettingsRequest) =>

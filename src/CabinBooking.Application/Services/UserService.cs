@@ -50,4 +50,38 @@ public class UserService(IAppDbContext db, ICurrentUser currentUser, IAuditLogge
         await audit.LogAsync("UserUpdated", "User", user.Id.ToString(), $"Updated user '{user.Name}' ({user.Email}) to Role={user.Role}, Active={user.IsActive}", ct);
         return user.ToDto();
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct)
+    {
+        if (id == currentUser.UserId)
+            throw new AppValidationException("You cannot delete your own account.");
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct) ?? throw new NotFoundException("User not found.");
+        db.Users.Remove(user);
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync("UserDeleted", "User", id.ToString(), $"Deleted user '{user.Name}' ({user.Email})", ct);
+    }
+
+    public async Task<UserDto> UpdateProfileAsync(Guid id, UpdateProfileRequest request, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct) ?? throw new NotFoundException("User not found.");
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            var name = request.Name.Trim();
+            if (name.Length is < 2 or > 100) throw new AppValidationException("Name must be 2–100 characters.");
+            user.Name = name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CurrentPassword) || !string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword)) throw new AppValidationException("Current password is required to set a new password.");
+            if (!passwords.Verify(user, request.CurrentPassword)) throw new AppValidationException("Current password is incorrect.");
+            if ((request.NewPassword?.Length ?? 0) < 8) throw new AppValidationException("New password must be at least 8 characters.");
+            user.PasswordHash = passwords.Hash(user, request.NewPassword!);
+        }
+
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync("ProfileUpdated", "User", user.Id.ToString(), $"User '{user.Name}' updated their profile", ct);
+        return user.ToDto();
+    }
 }

@@ -71,6 +71,18 @@ public class CabinService(IAppDbContext db, IBookingNotifier notifier, BookingRu
         return cabin.ToDto();
     }
 
+    public async Task DeleteAsync(int id, CancellationToken ct)
+    {
+        var cabin = await db.Cabins.FirstOrDefaultAsync(c => c.Id == id, ct) ?? throw new NotFoundException("Cabin not found.");
+        var hasBookings = await db.Bookings.AnyAsync(b => b.CabinId == id, ct);
+        if (hasBookings)
+            throw new AppValidationException("Cannot delete a cabin that has bookings. Disable it instead.");
+        db.Cabins.Remove(cabin);
+        await db.SaveChangesAsync(ct);
+        await notifier.CabinsChangedAsync();
+        await audit.LogAsync("CabinDeleted", "Cabin", id.ToString(), $"Deleted room '{cabin.Name}'", ct);
+    }
+
     private static void Apply(Cabin cabin, UpsertCabinRequest r)
     {
         cabin.Name = r.Name.Trim();

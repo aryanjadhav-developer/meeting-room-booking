@@ -19,6 +19,8 @@ public record ResetPasswordRequest(string Email, string Token, string NewPasswor
 
 public record UpdateUserRequest(UserRole Role, bool IsActive);
 
+public record UpdateProfileRequest(string? Name, string? CurrentPassword, string? NewPassword);
+
 public record CreateUserRequest(string Name, string Email, string Password, UserRole Role = UserRole.Employee);
 
 /// <summary>Minimal employee entry for the attendee picker (visible to every signed-in user).</summary>

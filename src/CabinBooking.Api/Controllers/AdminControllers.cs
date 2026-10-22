@@ -19,6 +19,13 @@ public class UsersController(UserService users) : ControllerBase
 
     [HttpPut("{id:guid}")]
     public Task<UserDto> Update(Guid id, UpdateUserRequest request, CancellationToken ct) => users.UpdateAsync(id, request, ct);
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await users.DeleteAsync(id, ct);
+        return NoContent();
+    }
 }
 
 [ApiController]
